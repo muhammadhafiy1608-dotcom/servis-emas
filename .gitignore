@@ -1,0 +1,9 @@
+node_modules/
+tests/shots/
+*.zip
+.DS_Store
+
+# Jangan sesekali commit data penyimpan sebenar (Excel, CSV, backup JSON).
+data/
+*.backup.json
+servis-emas-backup-*.json

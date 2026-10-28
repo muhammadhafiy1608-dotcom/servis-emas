@@ -1,0 +1,4 @@
+# App statik — tiada langkah build. Netlify terus terbitkan folder public/.
+[build]
+  publish = "public"
+  command = ""
