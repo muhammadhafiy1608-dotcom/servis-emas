@@ -3,7 +3,7 @@
   'use strict';
   var C = window.SECore, X = window.SEXlsx, CONTENT = window.SE_CONTENT;
   var KEY = 'servisEmas.v1';
-  var VERSION = '1.3.0';
+  var VERSION = '1.3.1';
   var esc = C.escapeHtml;
   var S = null;
   var idx = null;
@@ -567,10 +567,12 @@
       var st = campStats(k);
       return '<section class="card session"><div class="card-head"><h2>' + esc(k.title) + '</h2><span class="time">' + st.done + '/' + st.total + '</span></div>' +
         ingot(st.done, st.total, false) + '<p class="meta">' + esc(filterSummary(k.filter || {})) + '. Baki ' + st.pending + ' orang.</p>' +
-        '<a class="btn block" href="#/broadcast/' + k.id + '">' + (st.done ? 'Teruskan' : 'Mula hantar') + '</a></section>';
+        '<div class="btn-row camp-actions"><a class="btn" href="#/broadcast/' + k.id + '">' + (st.done ? 'Teruskan' : 'Mula hantar') + '</a>' +
+        '<button class="btn danger" data-act="campDelete" data-id="' + k.id + '" aria-label="Padam broadcast ' + esc(k.title) + '">' + icon('trash') + 'Padam</button></div></section>';
     }).join('');
     if (finished.length) h += '<h3 class="sub-h">Broadcast selesai</h3><ul class="dlist">' + finished.map(function (k) {
-      return '<li><span class="tick">' + icon('check') + '</span><div class="who"><b><a href="#/broadcast/' + k.id + '">' + esc(k.title) + '</a></b><span>' + campStats(k).done + ' dihantar</span></div></li>';
+      return '<li><span class="tick">' + icon('check') + '</span><div class="who"><b><a href="#/broadcast/' + k.id + '">' + esc(k.title) + '</a></b><span>' + campStats(k).done + ' dihantar</span></div>' +
+        '<button class="icon-btn" data-act="campDelete" data-id="' + k.id + '" aria-label="Padam broadcast ' + esc(k.title) + '">' + icon('trash') + '</button></li>';
     }).join('') + '</ul>';
     return h;
   }
@@ -1437,11 +1439,13 @@
     },
     campDelete: function (a) {
       var k = campById(a.dataset.id); if (!k) return;
-      confirmBox('Padam broadcast ini?', 'Senarai penerima "' + k.title + '" dibuang. Sejarah mesej yang dah dihantar kekal.', 'Padam', true).then(function (ok) {
+      var st = campStats(k);
+      confirmBox('Padam broadcast ini?', '"' + k.title + '" (' + st.done + '/' + st.total + ' dihantar) akan dibuang. ' + (st.done ? 'Sejarah mesej yang dah dihantar kekal, jadi mereka tak akan terima skrip ini lagi.' : 'Belum ada mesej dihantar.'), 'Padam', true).then(function (ok) {
         if (!ok) return;
         S.campaigns = S.campaigns.filter(function (x) { return x !== k; }); save();
         if (k.img && !mediaInUse(k.img)) mediaDel(k.img);
-        go('hari-ini'); toast('Broadcast dipadam.');
+        if (ui.route[0] === 'broadcast') go('hari-ini'); else render(true);
+        toast('Broadcast dipadam.');
       });
     },
     topup: function (a) {

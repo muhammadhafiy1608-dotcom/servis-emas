@@ -369,6 +369,12 @@ const st = page => page.evaluate(() => window.SEApp.state());
     ok(sentIds.join() === 'Daniel', 'rekod dihantar: ' + sentIds.join());
     await x.page.goto(URL + '#/hari-ini'); await x.page.waitForSelector('text=Teruskan');
     ok((await x.page.textContent('#view')).includes('1/2'), 'kemajuan broadcast di Hari Ini');
+    // Padam broadcast terus dari Hari Ini (tanpa masuk ke skrin broadcast)
+    await x.page.click('section.card.session button[data-act="campDelete"]'); await x.page.waitForSelector('button[data-act="confirmYes"]');
+    ok((await x.page.textContent('.sheet')).includes('1/2 dihantar'), 'pengesahan padam tunjuk kemajuan');
+    await x.page.click('button[data-act="confirmYes"]'); await x.page.waitForTimeout(200);
+    ok(!(await x.page.isVisible('section.card.session')) && (await x.page.evaluate(() => SEApp.state().campaigns.length)) === 0, 'broadcast dipadam dari Hari Ini');
+    ok((await x.page.evaluate(() => SEApp.state().customers.find(c => c.nick === 'Daniel').sent.ZP03)) != null, 'sejarah hantar kekal selepas padam');
     await x.page.goto(URL + '#/penyimpan'); await x.page.waitForSelector('.clist');
     ok(await x.page.isVisible('button[data-f="junior"]'), 'penapis Junior ada');
     await x.page.goto(URL + '#/mesej'); await x.page.waitForSelector('.scriptlist');

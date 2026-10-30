@@ -480,3 +480,5 @@ table.prev th { color: var(--muted); font-weight: 700; }
 .attach p { margin: 0 0 8px; }
 .attach .btn-row { gap: 8px; }
 .btn.done { border-color: var(--ok); color: var(--ok); }
+.camp-actions .btn:first-child { flex: 1 1 auto; }
+.camp-actions .btn.danger { flex: 0 0 auto; }
