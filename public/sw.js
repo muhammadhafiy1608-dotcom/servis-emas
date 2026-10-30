@@ -1,6 +1,6 @@
 /* Servis Emas — service worker: cache untuk guna luar talian.
  * Rangkaian dahulu (supaya kemas kini terus nampak), cache jika luar talian. */
-var VERSION = 'servis-emas-v1.2.0';
+var VERSION = 'servis-emas-v1.3.0';
 var ASSETS = [
   './', './index.html', './style.css', './content.js', './core.js', './xlsx-lite.js', './app.js',
   './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',

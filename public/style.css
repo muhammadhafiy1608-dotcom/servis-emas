@@ -472,3 +472,11 @@ table.prev th { color: var(--muted); font-weight: 700; }
 .scriptlist li .muted { flex: 1; }
 .scriptlist li b { font-variant-numeric: tabular-nums; }
 .chip.prospek { background: transparent; border: 1px dashed var(--brand); color: var(--brand); }
+
+/* Edit teks & lampiran gambar (broadcast) */
+.bubble-tools { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.attach { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0 4px; padding: 10px; border: 1px dashed var(--line-strong); border-radius: 14px; background: var(--surface-2); }
+.attach img { width: 96px; height: 96px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); flex: none; background: var(--line); }
+.attach p { margin: 0 0 8px; }
+.attach .btn-row { gap: 8px; }
+.btn.done { border-color: var(--ok); color: var(--ok); }

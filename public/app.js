@@ -3,14 +3,14 @@
   'use strict';
   var C = window.SECore, X = window.SEXlsx, CONTENT = window.SE_CONTENT;
   var KEY = 'servisEmas.v1';
-  var VERSION = '1.2.0';
+  var VERSION = '1.3.0';
   var esc = C.escapeHtml;
   var S = null;
   var idx = null;
   var ui = {
     route: ['hari-ini'], q: '', cf: 'semua', climit: 150,
     msgCat: 'semua', msgAge: 'semua', draft: null, draftFor: null, previewAs: '', previewNM: false,
-    imp: null, bdayOff: {}, justDone: false, awaiting: null, pendingToast: '', renderDay: null, camp: null
+    imp: null, bdayOff: {}, justDone: false, awaiting: null, pendingToast: '', renderDay: null, camp: null, edits: {}
   };
 
   /* ================= Ikon ================= */
@@ -32,6 +32,8 @@
     skip: '<path d="M6 6l8 6-8 6z"/><path d="M18 6v12"/>',
     stop: '<circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/>',
     edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+    image: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4 3.5"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/>',
     trash: '<path d="M5 7h14M10 4h4M7 7l1 13h8l1-13"/>',
     share: '<path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>',
     up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
@@ -225,6 +227,79 @@
   function campById(id) { return (S.campaigns || []).filter(function (k) { return k.id === id; })[0] || null; }
   function campOf(slotId) { return slotId && String(slotId).indexOf('k:') === 0 ? campById(String(slotId).slice(2)) : null; }
   function msgFor(c, slotId) { var k = campOf(slotId); return k ? msgById(k.msg) : nextMsg(c); }
+  // Teks sebenar yang dihantar: suntingan untuk orang ini > teks broadcast yang diedit > skrip pustaka
+  function textFor(c, slotId) {
+    var k = campOf(slotId), m = msgFor(c, slotId);
+    if (!m) return '';
+    if (k && k.personal && k.personal[c.id] != null) return k.personal[c.id];
+    if (!k && ui.edits[c.id + ':' + m.id] != null) return ui.edits[c.id + ':' + m.id];
+    return broadcastText(c, k ? C.withBody(m, k.body) : m);
+  }
+  function hasPersonalEdit(c, slotId) {
+    var k = campOf(slotId), m = msgFor(c, slotId);
+    return !!m && (k ? !!(k.personal && k.personal[c.id] != null) : ui.edits[c.id + ':' + m.id] != null);
+  }
+
+  /* ================= Gambar (infografik) — disimpan dalam telefon ini (IndexedDB), bukan dalam backup ================= */
+  var mediaCache = {};
+  function mediaDb() {
+    return new Promise(function (res, rej) {
+      if (!window.indexedDB) { rej(new Error('Pelayar ini tidak boleh simpan gambar.')); return; }
+      var r = indexedDB.open('servisEmasMedia', 1);
+      r.onupgradeneeded = function () { r.result.createObjectStore('img'); };
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function mediaTx(mode, fn) {
+    return mediaDb().then(function (db) {
+      return new Promise(function (res, rej) {
+        var t = db.transaction('img', mode), st = t.objectStore('img'), out = fn(st);
+        t.oncomplete = function () { res(out && out.result); };
+        t.onerror = function () { rej(t.error); };
+      });
+    });
+  }
+  function mediaPut(key, blob) { mediaCache[key] = null; return mediaTx('readwrite', function (st) { st.put(blob, key); }).then(function () { return key; }); }
+  function mediaGet(key) { return mediaTx('readonly', function (st) { return st.get(key); }); }
+  function mediaDel(key) {
+    if (!key) return Promise.resolve();
+    if (mediaCache[key]) { URL.revokeObjectURL(mediaCache[key]); delete mediaCache[key]; }
+    return mediaTx('readwrite', function (st) { st.delete(key); }).catch(function () { /* abaikan */ });
+  }
+  // Isi <img data-media="key"> selepas render (render berasaskan string)
+  function hydrateMedia() {
+    $$('img[data-media]').forEach(function (img) {
+      var key = img.dataset.media;
+      if (mediaCache[key]) { img.src = mediaCache[key]; return; }
+      mediaGet(key).then(function (b) {
+        if (!b) { img.replaceWith(Object.assign(document.createElement('p'), { className: 'small bad', textContent: 'Gambar tiada dalam telefon ini.' })); return; }
+        mediaCache[key] = mediaCache[key] || URL.createObjectURL(b); img.src = mediaCache[key];
+      }).catch(function () { /* abaikan */ });
+    });
+  }
+  // Kecilkan ke maksimum 1600px dan simpan sebagai PNG (format yang boleh disalin ke clipboard di iPhone)
+  function prepareImage(file) {
+    return new Promise(function (res, rej) {
+      if (!/^image\//.test(file.type)) { rej(new Error('Pilih fail gambar (JPG atau PNG).')); return; }
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function () {
+        var k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+        var cv = document.createElement('canvas'); cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url);
+        cv.toBlob(function (b) { if (b) res(b); else rej(new Error('Gambar tidak dapat diproses.')); }, 'image/png');
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('Gambar tidak dapat dibaca.')); };
+      img.src = url;
+    });
+  }
+  function copyImage(key) {
+    if (!navigator.clipboard || !window.ClipboardItem) return Promise.reject(new Error('Pelayar ini tidak boleh salin gambar. Guna butang Kongsi.'));
+    // ClipboardItem dengan Promise: mesti dibina terus dalam tekanan butang (syarat Safari)
+    var item = new ClipboardItem({ 'image/png': mediaGet(key).then(function (b) { if (!b) throw new Error('Gambar tiada.'); return b; }) });
+    return navigator.clipboard.write([item]);
+  }
+  function mediaInUse(key) { return (S.campaigns || []).some(function (k) { return k.img === key; }) || (ui.camp && ui.camp.img === key); }
 
   /* ================= Tindakan hantar ================= */
   function markSent(c, m, slotId) {
@@ -236,6 +311,10 @@
     if (b) { b.done[c.id] = rec; delete b.skip[c.id]; }
     save();
     return rec;
+  }
+  function confirmSentAfterShare(c, slotId) {
+    var m = msgFor(c, slotId); if (!m) return false;
+    markSent(c, m, slotId); ui.justDone = true; render(true); return true;
   }
   function undoSent(c, slotId) {
     var b = campOf(slotId) || (S.batches[C.isoDay(now())] || {})[slotId];
@@ -283,6 +362,7 @@
     renderTabs(r[0]);
     if (keepScroll) window.scrollTo(0, y);
     if (out.after) out.after();
+    hydrateMedia();
     if (ui.pendingToast) { var t = ui.pendingToast; ui.pendingToast = ''; toast(t); }
   }
   function renderTabs(r0) {
@@ -495,7 +575,7 @@
     return h;
   }
   function campDraft() {
-    if (!ui.camp) ui.camp = { msg: '', groups: [], status: 'semua', tags: [], skipReceived: true };
+    if (!ui.camp) ui.camp = { msg: '', body: null, saveLib: false, img: null, groups: [], status: 'semua', tags: [], skipReceived: true };
     return ui.camp;
   }
   function msgOptions(cur) {
@@ -533,10 +613,21 @@
       .filter(function (x) { return x[0]; }).map(function (x) { return '<li>' + x[0] + ' ' + esc(x[1]) + '</li>'; }).join('');
     var first = p.ids.slice(0, 3).map(byId).filter(Boolean);
     var sample = first[0] || sampleCustomer('dewasa');
+    var body = m ? (d.body != null ? d.body : m.body) : '', changed = !!m && body !== m.body;
+    ui.campSample = sample;
     var h = '<section class="card"><h2 style="margin-bottom:12px">1. Pilih skrip</h2>' +
       '<label class="field"><span class="sr">Skrip</span><select data-change="campMsg">' + msgOptions(d.msg) + '</select></label>' +
-      (m ? '<div class="bubble">' + C.waToHtml(broadcastText(sample, m)) + '</div><p class="small muted" style="margin-top:6px">Contoh untuk ' + esc(pang(sample)) + '. Nama, gelaran dan sapaan ikut setiap penerima.</p>' : '<p class="muted small">Pilih skrip untuk lihat pratonton.</p>') +
+      (m ? '<label class="field"><span>Teks untuk broadcast ini' + (changed ? ' <span class="chip gold">diubah</span>' : '') + '</span><textarea id="campBody" data-input="campBody" rows="9">' + esc(body) + '</textarea>' +
+          '<small>Ubah ikut suka. {panggilan}, {salam} dan {nama_saya} diisi automatik. Skrip asal dalam pustaka tidak berubah.</small></label>' +
+          '<div class="inserts">' + ['{panggilan}', '{nama}', '{salam}', '{nama_saya}'].map(function (x) { return '<button type="button" data-act="campInsert" data-v="' + x + '">' + x + '</button>'; }).join('') +
+          (changed ? '<button type="button" data-act="campBodyReset">Guna teks asal</button>' : '') + '</div>' +
+          (changed ? '<label class="switch"><input type="checkbox" data-change="campSaveLib"' + (d.saveLib ? ' checked' : '') + '><span class="sw-text"><b>Simpan juga dalam pustaka</b><small>Skrip ' + esc(m.id) + ' dalam pustaka diganti dengan teks ini.</small></span></label>' : '') +
+          '<p class="small muted" style="margin:12px 0 6px">Pratonton untuk ' + esc(pang(sample)) + ':</p><div class="bubble" id="campPrev">' + C.waToHtml(broadcastText(sample, C.withBody(m, body))) + '</div>'
+        : '<p class="muted small">Pilih skrip untuk lihat dan ubah teksnya.</p>') +
       '</section>' +
+      '<section class="card"><h2 style="margin-bottom:6px">Gambar (pilihan)</h2><p class="muted small" style="margin:0 0 12px">Satu gambar atau infografik untuk dihantar bersama teks. Disimpan dalam telefon ini sahaja (tidak termasuk dalam backup).</p>' +
+      (d.img ? '<div class="attach"><img data-media="' + esc(d.img) + '" alt="Gambar lampiran"><div class="btn-row"><button class="btn sm danger" data-act="campImgDel">' + icon('trash') + 'Buang gambar</button></div></div>'
+        : '<label class="btn file-btn">' + icon('image') + 'Pilih gambar<input type="file" accept="image/*" data-change="campImg"></label>') + '</section>' +
       '<section class="card"><h2 style="margin-bottom:12px">2. Pilih penerima</h2>' +
       '<fieldset class="field"><legend>Status pembelian</legend><div class="toggles">' + statusT + '</div></fieldset>' +
       '<fieldset class="field"><legend>Kategori umur</legend><div class="toggles">' + groupT + '</div></fieldset>' +
@@ -564,7 +655,7 @@
       h += focusCard(pending[0], slotId);
       if (pending.length > 1) {
         h += '<h3 class="sub-h">Giliran seterusnya (' + (pending.length - 1) + ')</h3><ol class="qlist">' + pending.slice(1, 31).map(function (c, i) {
-          return '<li><span class="qnum">' + (done.length + i + 2) + '</span><div class="who"><b>' + esc(pang(c)) + '</b><span>' + esc(C.fmtPhone(c.phone)) + '</span></div>' + sendLink(c, slotId, true) + '</li>';
+          return '<li><span class="qnum">' + (done.length + i + 2) + '</span><div class="who"><b>' + esc(pang(c)) + '</b><span>' + esc(C.fmtPhone(c.phone)) + '</span></div>' + (k.img ? '' : sendLink(c, slotId, true)) + '</li>';
         }).join('') + '</ol>' + (pending.length > 31 ? '<p class="hint">dan ' + (pending.length - 31) + ' orang lagi.</p>' : '');
       }
     } else {
@@ -626,7 +717,7 @@
   }
   function sendLink(c, slotId, small) {
     var m = msgFor(c, slotId);
-    var href = m ? C.waLink(c.phone, broadcastText(c, m), linkMode()) : '#';
+    var href = m ? C.waLink(c.phone, textFor(c, slotId), linkMode()) : '#';
     return '<a class="btn send' + (small ? ' sm' : ' big') + '" href="' + esc(href) + '" data-act="send" data-cid="' + c.id + '" data-slot="' + (slotId || '') + '">' + icon('send') + (small ? 'Hantar' : 'Hantar WhatsApp') + '</a>';
   }
   function focusCard(c, slotId) {
@@ -634,14 +725,18 @@
     if (!m) {
       return '<article class="focus"><h2 class="focus-name">' + esc(pang(c)) + '</h2><p class="muted">Tiada mesej yang sesuai untuk penyimpan ini sekarang.</p><button class="btn" data-act="skip" data-cid="' + c.id + '" data-slot="' + slotId + '">Langkau</button></article>';
     }
-    var text = broadcastText(c, m);
+    var text = textFor(c, slotId), k = campOf(slotId), edited = hasPersonalEdit(c, slotId);
     var awaiting = ui.awaiting && ui.awaiting.cid === c.id;
     return '<article class="focus arrive" data-cid="' + c.id + '">' +
       '<h2 class="focus-name">' + esc(pang(c)) + '</h2>' +
       '<p class="focus-meta"><span>' + esc(C.displayName(c.name)) + '</span><span>' + esc(C.fmtPhone(c.phone)) + '</span></p>' +
       '<div class="chips">' + groupChip(c) + '<span class="chip gold"><span class="dot ' + m.cat + '"></span>' + esc(m.title) + '</span></div>' +
       '<div class="bubble clamp" id="fbubble">' + C.waToHtml(text) + '</div>' +
-      '<button class="linkish" data-act="expand">Lihat mesej penuh</button>' +
+      '<div class="bubble-tools"><button class="linkish" data-act="expand">Lihat mesej penuh</button>' +
+      '<button class="linkish" data-act="editText" data-cid="' + c.id + '" data-slot="' + slotId + '">' + (edited ? 'Edit lagi (diubah untuk ' + esc(pang(c)) + ')' : 'Edit untuk orang ini') + '</button></div>' +
+      (k && k.img ? '<div class="attach"><img data-media="' + esc(k.img) + '" alt="Gambar lampiran"><div><p class="small">Gambar untuk broadcast ini. Tekan <b>Salin gambar</b>, kemudian <b>Hantar WhatsApp</b>. Dalam WhatsApp: hantar teks, kemudian tekan lama ruang taip → <b>Tampal</b> → hantar gambar.</p>' +
+        '<div class="btn-row"><button class="btn sm" data-act="copyImg" data-slot="' + slotId + '">' + icon('copy') + 'Salin gambar</button>' +
+        (navigator.share ? '<button class="btn sm" data-act="shareImg" data-cid="' + c.id + '" data-slot="' + slotId + '">' + icon('share') + 'Kongsi</button>' : '') + '</div></div></div>' : '') +
       (awaiting ? '<div class="confirm-row"><p>Dah tekan hantar di WhatsApp?</p><button class="btn sm send" data-act="confirmSent" data-cid="' + c.id + '" data-slot="' + slotId + '">Ya, dah</button><button class="btn sm" data-act="notSent">Belum</button></div>' : '') +
       '<div class="focus-actions">' + sendLink(c, slotId, false) +
       '<button class="icon-btn" data-act="personMenu" data-cid="' + c.id + '" data-slot="' + slotId + '" aria-label="Pilihan lain untuk ' + esc(pang(c)) + '">' + icon('more') + '</button></div>' +
@@ -1230,7 +1325,7 @@
         toast('Data contoh: WhatsApp tidak dibuka. Ditanda dihantar.');
         return;
       }
-      prepLink(a, c.phone, broadcastText(c, m));
+      prepLink(a, c.phone, textFor(c, slotId));
       if (S.settings.autoMark) {
         setTimeout(function () {
           markSent(c, m, slotId); ui.justDone = true; render(true);
@@ -1265,7 +1360,7 @@
     testPerson: function (a) {
       var c = byId(a.dataset.cid), m = c && msgFor(c, a.dataset.slot); closeSheet();
       if (!c || !m) return;
-      openWa(S.settings.myPhone, broadcastText(c, m));
+      openWa(S.settings.myPhone, textFor(c, a.dataset.slot));
     },
     editPerson: function (a) { closeSheet(); go('penyimpan/' + a.dataset.cid); },
     markStop: function (a) {
@@ -1276,6 +1371,53 @@
       toast(pang(c) + ' ditanda STOP.', null, { label: 'Batal', fn: function () { c.optOut = false; delete b.skip[c.id]; save(); render(true); } });
     },
     campStatus: function (a) { campDraft().status = a.dataset.v; render(true); },
+    campBodyReset: function () { var d = campDraft(); d.body = null; d.saveLib = false; render(true); },
+    campInsert: function (a) {
+      var ta = $('#campBody'); if (!ta) return;
+      var st = ta.selectionStart || 0, en = ta.selectionEnd || 0;
+      ta.value = ta.value.slice(0, st) + a.dataset.v + ta.value.slice(en);
+      campDraft().body = ta.value; render(true);
+    },
+    campImgDel: function () { var d = campDraft(), key = d.img; d.img = null; if (key && !mediaInUse(key)) mediaDel(key); render(true); },
+    editText: function (a) {
+      var c = byId(a.dataset.cid), slot = a.dataset.slot; if (!c) return;
+      openSheet('<h3>Edit untuk ' + esc(pang(c)) + '</h3><p class="muted small">Teks ini untuk ' + esc(pang(c)) + ' sahaja. Skrip asal tidak berubah.</p>' +
+        '<label class="field" style="margin-top:12px"><span class="sr">Teks mesej</span><textarea id="ptext" rows="12">' + esc(textFor(c, slot)) + '</textarea></label>' +
+        '<div class="btn-row"><button class="btn" data-act="resetText" data-cid="' + c.id + '" data-slot="' + esc(slot) + '">Guna teks asal</button>' +
+        '<button class="btn primary" data-act="saveText" data-cid="' + c.id + '" data-slot="' + esc(slot) + '">Guna teks ini</button></div>', 'Edit mesej');
+    },
+    saveText: function (a) {
+      var c = byId(a.dataset.cid), slot = a.dataset.slot, ta = $('#ptext'); if (!c || !ta) return;
+      var k = campOf(slot), m = msgFor(c, slot), v = ta.value.trim();
+      if (!v) { toast('Teks tidak boleh kosong.', 'err'); return; }
+      if (k) { k.personal = k.personal || {}; k.personal[c.id] = v; save(); } else if (m) ui.edits[c.id + ':' + m.id] = v;
+      closeSheet(); render(true); toast('Teks untuk ' + pang(c) + ' dikemas kini.');
+    },
+    resetText: function (a) {
+      var c = byId(a.dataset.cid), slot = a.dataset.slot; if (!c) return;
+      var k = campOf(slot), m = msgFor(c, slot);
+      if (k && k.personal) { delete k.personal[c.id]; save(); } else if (m) delete ui.edits[c.id + ':' + m.id];
+      closeSheet(); render(true);
+    },
+    copyImg: function (a) {
+      var k = campOf(a.dataset.slot); if (!k || !k.img) return;
+      copyImage(k.img).then(function () {
+        a.classList.add('done'); a.innerHTML = icon('check') + 'Gambar disalin';
+        toast('Gambar disalin. Tekan Hantar WhatsApp, kemudian Tampal gambar dalam WhatsApp.');
+      }).catch(function (e) { toast((e && e.message) || 'Gambar tidak dapat disalin. Cuba butang Kongsi.', 'err'); });
+    },
+    shareImg: function (a) {
+      var c = byId(a.dataset.cid), slot = a.dataset.slot, k = campOf(slot); if (!c || !k || !k.img) return;
+      var text = textFor(c, slot);
+      mediaGet(k.img).then(function (b) {
+        var f = new File([b], 'infografik.png', { type: 'image/png' });
+        var data = { files: [f], text: text };
+        if (navigator.canShare && !navigator.canShare(data)) throw new Error('Telefon ini tidak boleh kongsi gambar. Guna Salin gambar.');
+        return navigator.share(data);
+      }).then(function () {
+        if (confirmSentAfterShare(c, slot)) toast('Ditanda dihantar kepada ' + pang(c) + '.');
+      }).catch(function (e) { if (e && e.name !== 'AbortError') toast(e.message || 'Tidak dapat kongsi.', 'err'); });
+    },
     campGroup: function (a) {
       var d = campDraft(), g = a.dataset.g;
       if (!g) d.groups = []; else { var i = d.groups.indexOf(g); if (i >= 0) d.groups.splice(i, 1); else d.groups.push(g); }
@@ -1286,6 +1428,10 @@
       var d = campDraft(), m = msgById(d.msg); if (!m) return;
       var k = C.newCampaign(S, m, { groups: d.groups.slice(), status: d.status, tags: d.tags.slice(), skipReceived: d.skipReceived !== false }, now());
       if (!k.ids.length) { S.campaigns.shift(); toast('Tiada penerima untuk pilihan ini.', 'err'); return; }
+      if (d.body != null && d.body.trim() && d.body !== m.body) {
+        if (d.saveLib) { m.body = d.body; if (m.builtin) m.edited = true; } else k.body = d.body;
+      }
+      if (d.img) k.img = d.img;
       ui.camp = null; save(); go('broadcast/' + k.id);
       ui.pendingToast = 'Broadcast "' + k.title + '" disediakan untuk ' + k.ids.length + ' orang.';
     },
@@ -1293,7 +1439,9 @@
       var k = campById(a.dataset.id); if (!k) return;
       confirmBox('Padam broadcast ini?', 'Senarai penerima "' + k.title + '" dibuang. Sejarah mesej yang dah dihantar kekal.', 'Padam', true).then(function (ok) {
         if (!ok) return;
-        S.campaigns = S.campaigns.filter(function (x) { return x !== k; }); save(); go('hari-ini'); toast('Broadcast dipadam.');
+        S.campaigns = S.campaigns.filter(function (x) { return x !== k; }); save();
+        if (k.img && !mediaInUse(k.img)) mediaDel(k.img);
+        go('hari-ini'); toast('Broadcast dipadam.');
       });
     },
     topup: function (a) {
@@ -1441,8 +1589,16 @@
     impSheet: function (el) { ui.imp.si = +el.value; detectImp(); render(true); },
     impTag: function (el) { ui.imp.tag = el.value; },
     msgAge: function (el) { ui.msgAge = el.value; render(true); },
-    campMsg: function (el) { campDraft().msg = el.value; render(true); },
+    campMsg: function (el) { var d = campDraft(); d.msg = el.value; d.body = null; d.saveLib = false; render(true); },
     campSkipRecv: function (el) { campDraft().skipReceived = el.checked; render(true); },
+    campSaveLib: function (el) { campDraft().saveLib = el.checked; },
+    campImg: function (el) {
+      var f = el.files && el.files[0]; el.value = ''; if (!f) return;
+      var d = campDraft(), old = d.img;
+      prepareImage(f).then(function (b) { return mediaPut('img-' + Date.now().toString(36), b); }).then(function (key) {
+        d.img = key; if (old && !mediaInUse(old)) mediaDel(old); render(true); toast('Gambar dilampirkan.');
+      }).catch(function (e) { toast((e && e.message) || 'Gambar tidak dapat disimpan.', 'err'); });
+    },
     openerAge: function (el) { ui.openerAge = el.value; render(true); },
     previewAs: function (el) { ui.previewAs = el.value; refreshPreview(); },
     previewNM: function (el) { ui.previewNM = el.checked; refreshPreview(); },
@@ -1471,7 +1627,11 @@
   };
   var INP = {
     search: function (el) { ui.q = el.value; ui.climit = 150; refreshList(); },
-    draft: function (el) { ui.draft[el.dataset.k] = el.value; refreshPreview(); }
+    draft: function (el) { ui.draft[el.dataset.k] = el.value; refreshPreview(); },
+    campBody: function (el) {
+      var d = campDraft(), m = msgById(d.msg); d.body = el.value;
+      var p = $('#campPrev'); if (p && m) p.innerHTML = C.waToHtml(broadcastText(ui.campSample || sampleCustomer('dewasa'), C.withBody(m, el.value)));
+    }
   };
   function refreshList() { var w = $('#clist-wrap'); if (w) w.innerHTML = customerList(now()); }
   function refreshPreview() {

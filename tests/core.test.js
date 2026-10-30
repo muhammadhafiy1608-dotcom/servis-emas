@@ -597,4 +597,11 @@ t('Set 2 menyusul selepas Set 1', () => {
   });
 }
 
+t('withBody: teks broadcast diedit tanpa ubah pustaka', () => {
+  const m = msgs.find(x => x.id === 'ZP03'), e = C.withBody(m, 'Teks baharu {panggilan}');
+  assert.notStrictEqual(e, m); assert.strictEqual(e.body, 'Teks baharu {panggilan}'); assert.strictEqual(e.id, 'ZP03'); assert.notStrictEqual(m.body, e.body);
+  assert.strictEqual(C.withBody(m, null), m); assert.strictEqual(C.withBody(m, m.body), m);
+  assert.ok(C.composeBroadcast(cust({ name: 'Ali bin Abu', pg: '' }), e, S, now).includes('Teks baharu Tuan Ali'));
+});
+
 console.log(`${pass} tests passed`);

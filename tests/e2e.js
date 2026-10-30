@@ -382,6 +382,42 @@ const st = page => page.evaluate(() => window.SEApp.state());
     await x.ctx.close();
   }
 
+  console.log('12c. Edit teks broadcast, edit untuk seorang & lampiran gambar');
+  {
+    const x = await newPage(browser, { permissions: ['clipboard-read', 'clipboard-write'] });
+    await x.page.goto(URL + '#/import');
+    await x.page.setInputFiles('input[type=file][data-change="importFile"]', T + 'master-database-rekaan.csv');
+    await x.page.waitForSelector('button[data-act="importGo"]'); await x.page.click('button[data-act="importGo"]'); await x.page.waitForSelector('text=Import selesai');
+    await x.page.goto(URL + '#/broadcast/baru'); await x.page.waitForSelector('select[data-change="campMsg"]');
+    await x.page.selectOption('select[data-change="campMsg"]', 'ZP03');
+    await x.page.fill('#campBody', '*Teks khas broadcast* untuk {panggilan} 💛');
+    ok((await x.page.textContent('#campPrev')).includes('Teks khas broadcast untuk Danny'), 'pratonton ikut teks yang diedit');
+    await x.page.setInputFiles('input[type=file][data-change="campImg"]', T + 'infografik-rekaan.png');
+    await x.page.waitForSelector('.attach img[src^="blob:"]', { timeout: 10000 });
+    ok(true, 'gambar dilampirkan & dipaparkan');
+    await x.page.click('button[data-act="campStatus"][data-v="prospek"]');
+    ok((await x.page.inputValue('#campBody')).includes('Teks khas broadcast'), 'teks diedit kekal selepas tukar penapis');
+    await shot(x.page, '05d-broadcast-edit-gambar', true);
+    await x.page.click('button[data-act="campCreate"]'); await x.page.waitForSelector('.focus .attach img[src^="blob:"]');
+    ok((await x.page.textContent('#fbubble')).includes('Teks khas broadcast untuk Danny'), 'kad hantar guna teks broadcast');
+    await x.page.click('button[data-act="copyImg"]'); await x.page.waitForSelector('text=Gambar disalin');
+    const types = await x.page.evaluate(async () => { const it = await navigator.clipboard.read(); return it[0].types; });
+    ok(types.includes('image/png'), 'gambar disalin ke clipboard: ' + types.join());
+    await x.page.click('button[data-act="editText"]'); await x.page.waitForSelector('#ptext');
+    await x.page.fill('#ptext', 'Khas untuk Danny sahaja 🙂');
+    await x.page.click('button[data-act="saveText"]'); await x.page.waitForTimeout(150);
+    ok((await x.page.textContent('#fbubble')).includes('Khas untuk Danny sahaja'), 'edit untuk seorang dipaparkan');
+    await shot(x.page, '05e-broadcast-hantar-gambar');
+    await x.page.click('.focus a[data-act="send"]'); await x.page.waitForTimeout(250);
+    ok(x.page.waHits.length && x.page.waHits[x.page.waHits.length - 1].includes('Khas untuk Danny sahaja'), 'WhatsApp dibuka dengan teks yang diedit');
+    const nxt = await x.page.textContent('#fbubble');
+    ok((await x.page.textContent('.focus-name')).trim() === 'Farah' && nxt.includes('Teks khas broadcast untuk Farah') && !nxt.includes('Khas untuk Danny'), 'orang seterusnya guna teks broadcast, bukan suntingan Danny');
+    const lib = await x.page.evaluate(() => SEApp.state().messages.find(m => m.id === 'ZP03').body);
+    ok(!lib.includes('Teks khas broadcast'), 'skrip asal dalam pustaka tidak berubah');
+    ok(x.page.errors.length === 0, 'no errors: ' + x.page.errors.join(' | '));
+    await x.ctx.close();
+  }
+
   console.log('13. Desktop & mod gelap');
   const d = await newPage(browser, { viewport: { width: 1280, height: 860 }, isMobile: false, hasTouch: false, deviceScaleFactor: 1, userAgent: undefined });
   await d.page.goto(URL);

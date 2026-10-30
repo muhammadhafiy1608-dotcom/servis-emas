@@ -16,6 +16,12 @@ Pemilik bukan pengaturcara: semua teks UI, mesej dan penjelasan kepada pemilik d
 - **Tiada PG Code = bakal pelanggan** (`customer.pg === ''`, `C.isProspect`; `null` = lajur PG tiada/tidak diketahui).
   Diasingkan (penapis "Tiada PG Code"). Skrip khas ZP01–ZP10 `aud: 'prospek'` hanya untuk mereka; S00 `aud: 'penyimpan'`.
   Import semula tidak membuang PG Code yang dah ada.
+- **Edit sebelum hantar (v1.3):** teks skrip boleh diubah untuk satu broadcast (`campaign.body`, pustaka tak berubah
+  kecuali pemilik pilih "Simpan juga dalam pustaka") dan untuk seorang (`campaign.personal[cid]`; sesi auto: `ui.edits`).
+  `textFor()` dalam app.js menentukan teks sebenar yang dihantar. `C.withBody` = salinan mesej dengan teks lain.
+- **Gambar/infografik (v1.3):** satu gambar setiap broadcast (`campaign.img` = kunci IndexedDB `servisEmasMedia`, PNG ≤1600px;
+  tidak termasuk dalam backup JSON). `wa.me` tak boleh lampir gambar, jadi app **Salin gambar** (ClipboardItem PNG) →
+  pemilik Tampal dalam WhatsApp; atau **Kongsi** (Web Share dengan fail + teks; tanda dihantar selepas kongsi).
 - **Tiada penghantaran automatik.** Butang Hantar membuka pautan `wa.me` / `whatsapp://` dengan mesej siap ditulis;
   pemilik tekan hantar dalam WhatsApp. Jangan tambah automasi WhatsApp tidak rasmi (melanggar terma, risiko nombor disekat).
 - Personalisasi: `{panggilan}` (nama sahaja bawah 30, Tuan/Puan + nama untuk 30 ke atas — tetapan `honorific: 'umur'`),

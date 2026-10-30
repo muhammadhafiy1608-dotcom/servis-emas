@@ -639,6 +639,11 @@
     if (!s.myName || !s.signature) return '';
     return C.fill(s.signature, v).trim();
   };
+  // Salinan mesej dengan teks lain (teks diedit untuk satu broadcast), tanpa mengubah pustaka
+  C.withBody = function (m, body) {
+    if (!m || body == null || body === m.body) return m;
+    var x = {}; Object.keys(m).forEach(function (k) { x[k] = m[k]; }); x.body = body; return x;
+  };
   C.composeBroadcast = function (c, m, s, now, opts) {
     var v = C.vars(c, s, now);
     var parts = [];
