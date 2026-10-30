@@ -16,6 +16,9 @@ Pemilik bukan pengaturcara: semua teks UI, mesej dan penjelasan kepada pemilik d
 - **Tiada PG Code = bakal pelanggan** (`customer.pg === ''`, `C.isProspect`; `null` = lajur PG tiada/tidak diketahui).
   Diasingkan (penapis "Tiada PG Code"). Skrip khas ZP01–ZP10 `aud: 'prospek'` hanya untuk mereka; S00 `aud: 'penyimpan'`.
   Import semula tidak membuang PG Code yang dah ada.
+- **Mesej penuh dalam broadcast (v1.3.2):** kotak edit di Sediakan broadcast tunjuk mesej PENUH (`C.fullTemplate`: pembuka
+  umum + isi + tandatangan + STOP) dan broadcast simpan `campaign.full = true` — pratonton = apa yang dihantar, tiada baris
+  tambahan automatik (`composeBroadcast` dengan `m.full`). Pemilik minta "selaraskan" (Okt 2026). Jangan tambah baris tersembunyi.
 - **Edit sebelum hantar (v1.3):** teks skrip boleh diubah untuk satu broadcast (`campaign.body`, pustaka tak berubah
   kecuali pemilik pilih "Simpan juga dalam pustaka") dan untuk seorang (`campaign.personal[cid]`; sesi auto: `ui.edits`).
   `textFor()` dalam app.js menentukan teks sebenar yang dihantar. `C.withBody` = salinan mesej dengan teks lain.

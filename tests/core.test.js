@@ -604,4 +604,16 @@ t('withBody: teks broadcast diedit tanpa ubah pustaka', () => {
   assert.ok(C.composeBroadcast(cust({ name: 'Ali bin Abu', pg: '' }), e, S, now).includes('Teks baharu Tuan Ali'));
 });
 
+t('mesej penuh: templat = apa yang dihantar', () => {
+  const m = msgs.find(x => x.id === 'ZP06'), tpl = C.fullTemplate(m, S);
+  assert.ok(tpl.startsWith(S.openers[0]) && tpl.includes(m.body) && tpl.includes(S.signature) && tpl.includes('_' + S.stopText + '_'));
+  const c = cust({ name: 'Ali bin Abu', pg: '' }), full = C.withBody(m, tpl, true);
+  const filled = C.composeBroadcast(c, full, S, now);
+  assert.strictEqual(filled, C.fill(tpl, C.vars(c, S, now)).trim()); // tiada baris tambahan
+  const own = C.composeBroadcast(c, C.withBody(m, 'Hai {panggilan}, ni info ringkas.', true), S, now);
+  assert.strictEqual(own, 'Hai Tuan Ali, ni info ringkas.'); // salam/tandatangan/STOP dipadam = tak dihantar
+  assert.strictEqual(C.composeBroadcast(c, C.withBody(m, '{salam} {panggilan}', true), Object.assign({}, S, { salam: '' }), now), 'Tuan Ali');
+  assert.strictEqual(C.fullTemplate(full, S), tpl);
+});
+
 console.log(`${pass} tests passed`);

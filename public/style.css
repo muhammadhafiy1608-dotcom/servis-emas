@@ -482,3 +482,4 @@ table.prev th { color: var(--muted); font-weight: 700; }
 .btn.done { border-color: var(--ok); color: var(--ok); }
 .camp-actions .btn:first-child { flex: 1 1 auto; }
 .camp-actions .btn.danger { flex: 0 0 auto; }
+textarea.autogrow { overflow: hidden; resize: none; }

@@ -639,13 +639,31 @@
     if (!s.myName || !s.signature) return '';
     return C.fill(s.signature, v).trim();
   };
-  // Salinan mesej dengan teks lain (teks diedit untuk satu broadcast), tanpa mengubah pustaka
-  C.withBody = function (m, body) {
-    if (!m || body == null || body === m.body) return m;
-    var x = {}; Object.keys(m).forEach(function (k) { x[k] = m[k]; }); x.body = body; return x;
+  // Salinan mesej dengan teks lain (teks diedit untuk satu broadcast), tanpa mengubah pustaka.
+  // full = teks itu mesej penuh (salam, isi, tandatangan, STOP) — dihantar seperti ditulis, tiada tambahan automatik.
+  C.withBody = function (m, body, full) {
+    if (!m || body == null || (body === m.body && !!full === !!m.full)) return m;
+    var x = {}; Object.keys(m).forEach(function (k) { x[k] = m[k]; }); x.body = body; if (full) x.full = true; return x;
+  };
+  // Mesej penuh sebagai templat yang boleh diedit: pembuka umum + isi + tandatangan + ayat STOP.
+  // Pratonton = apa yang dihantar (pemilik minta "selaraskan", Okt 2026).
+  C.fullTemplate = function (m, s) {
+    if (!m) return '';
+    if (m.full) return m.body;
+    var parts = [];
+    if (m.opener !== false) parts.push((s.openers && s.openers[0]) || '{salam} {panggilan}');
+    parts.push(String(m.body || '').trim());
+    var foot = [];
+    if (s.myName && s.signature) foot.push(s.signature);
+    if (s.stopEvery > 0 && s.stopText) foot.push('_' + s.stopText + '_');
+    return parts.join('\n\n') + (foot.length ? '\n\n' + foot.join('\n') : '');
   };
   C.composeBroadcast = function (c, m, s, now, opts) {
     var v = C.vars(c, s, now);
+    if (m.full) {
+      return C.fill(m.body, v).split('\n').map(function (l) { return l.replace(/[ \t]{2,}/g, ' ').replace(/^[ \t]+|[ \t]+$/g, '').replace(/ ([,.!?])/g, '$1'); })
+        .join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
     var parts = [];
     if (m.opener !== false) { var op = C.openerFor(c, m, s, now); if (op) parts.push(C.tidyLine(C.fill(op, v))); }
     parts.push(C.fill(m.body, v).trim());

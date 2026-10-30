@@ -3,7 +3,7 @@
   'use strict';
   var C = window.SECore, X = window.SEXlsx, CONTENT = window.SE_CONTENT;
   var KEY = 'servisEmas.v1';
-  var VERSION = '1.3.1';
+  var VERSION = '1.3.2';
   var esc = C.escapeHtml;
   var S = null;
   var idx = null;
@@ -233,7 +233,7 @@
     if (!m) return '';
     if (k && k.personal && k.personal[c.id] != null) return k.personal[c.id];
     if (!k && ui.edits[c.id + ':' + m.id] != null) return ui.edits[c.id + ':' + m.id];
-    return broadcastText(c, k ? C.withBody(m, k.body) : m);
+    return broadcastText(c, k ? C.withBody(m, k.body, k.full) : m);
   }
   function hasPersonalEdit(c, slotId) {
     var k = campOf(slotId), m = msgFor(c, slotId);
@@ -363,6 +363,7 @@
     if (keepScroll) window.scrollTo(0, y);
     if (out.after) out.after();
     hydrateMedia();
+    $$('textarea.autogrow').forEach(autoGrow);
     if (ui.pendingToast) { var t = ui.pendingToast; ui.pendingToast = ''; toast(t); }
   }
   function renderTabs(r0) {
@@ -615,16 +616,16 @@
       .filter(function (x) { return x[0]; }).map(function (x) { return '<li>' + x[0] + ' ' + esc(x[1]) + '</li>'; }).join('');
     var first = p.ids.slice(0, 3).map(byId).filter(Boolean);
     var sample = first[0] || sampleCustomer('dewasa');
-    var body = m ? (d.body != null ? d.body : m.body) : '', changed = !!m && body !== m.body;
+    var tpl = m ? C.fullTemplate(m, s) : '', body = m ? (d.body != null ? d.body : tpl) : '', changed = !!m && body !== tpl;
     ui.campSample = sample;
     var h = '<section class="card"><h2 style="margin-bottom:12px">1. Pilih skrip</h2>' +
       '<label class="field"><span class="sr">Skrip</span><select data-change="campMsg">' + msgOptions(d.msg) + '</select></label>' +
-      (m ? '<label class="field"><span>Teks untuk broadcast ini' + (changed ? ' <span class="chip gold">diubah</span>' : '') + '</span><textarea id="campBody" data-input="campBody" rows="9">' + esc(body) + '</textarea>' +
-          '<small>Ubah ikut suka. {panggilan}, {salam} dan {nama_saya} diisi automatik. Skrip asal dalam pustaka tidak berubah.</small></label>' +
+      (m ? '<label class="field"><span>Mesej penuh untuk broadcast ini' + (changed ? ' <span class="chip gold">diubah</span>' : '') + '</span><textarea id="campBody" class="autogrow" data-input="campBody" rows="12">' + esc(body) + '</textarea>' +
+          '<small>Semua baris di sini akan dihantar, termasuk salam, tandatangan dan ayat STOP. Ubah atau padam mana-mana baris. {panggilan}, {salam} dan {nama_saya} diganti untuk setiap orang. Skrip asal dalam pustaka tidak berubah.</small></label>' +
           '<div class="inserts">' + ['{panggilan}', '{nama}', '{salam}', '{nama_saya}'].map(function (x) { return '<button type="button" data-act="campInsert" data-v="' + x + '">' + x + '</button>'; }).join('') +
           (changed ? '<button type="button" data-act="campBodyReset">Guna teks asal</button>' : '') + '</div>' +
           (changed ? '<label class="switch"><input type="checkbox" data-change="campSaveLib"' + (d.saveLib ? ' checked' : '') + '><span class="sw-text"><b>Simpan juga dalam pustaka</b><small>Skrip ' + esc(m.id) + ' dalam pustaka diganti dengan teks ini.</small></span></label>' : '') +
-          '<p class="small muted" style="margin:12px 0 6px">Pratonton untuk ' + esc(pang(sample)) + ':</p><div class="bubble" id="campPrev">' + C.waToHtml(broadcastText(sample, C.withBody(m, body))) + '</div>'
+          '<p class="small muted" style="margin:12px 0 6px">Pratonton untuk ' + esc(pang(sample)) + ' (inilah yang dihantar):</p><div class="bubble" id="campPrev">' + C.waToHtml(broadcastText(sample, C.withBody(m, body, true))) + '</div>'
         : '<p class="muted small">Pilih skrip untuk lihat dan ubah teksnya.</p>') +
       '</section>' +
       '<section class="card"><h2 style="margin-bottom:6px">Gambar (pilihan)</h2><p class="muted small" style="margin:0 0 12px">Satu gambar atau infografik untuk dihantar bersama teks. Disimpan dalam telefon ini sahaja (tidak termasuk dalam backup).</p>' +
@@ -1091,7 +1092,8 @@
       fld('Isi mesej', '<textarea data-input="draft" data-k="body" rows="12" id="dbody" placeholder="Tulis tips anda di sini. Guna *teks* untuk huruf tebal.">' + esc(d.body) + '</textarea>') +
       '<div class="inserts" aria-label="Sisip">' + ['{panggilan}', '{nama}', '{salam}', '{waktu}', '{hari}', '{nama_saya}'].map(function (p) { return '<button type="button" data-act="insert" data-v="' + p + '">' + p + '</button>'; }).join('') +
       '<button type="button" data-act="wrap" data-v="*">*tebal*</button><button type="button" data-act="wrap" data-v="_">_condong_</button></div>' +
-      '<label class="switch"><input type="checkbox" data-change="draft" data-k="opener"' + (d.opener !== false ? ' checked' : '') + '><span class="sw-text"><b>Guna ayat pembuka automatik</b><small>Contoh: "' + esc(C.fill(S.settings.openers[0] || '', C.vars(sampleCustomer('dewasa'), S.settings, now()))) + '"</small></span></label>' +
+      (d.full ? '<p class="small muted" style="margin:8px 0">Mesej penuh: salam, tandatangan dan ayat STOP ditulis dalam teks di atas, dan dihantar seperti ditulis.</p>' :
+      '<label class="switch"><input type="checkbox" data-change="draft" data-k="opener"' + (d.opener !== false ? ' checked' : '') + '><span class="sw-text"><b>Guna ayat pembuka automatik</b><small>Contoh: "' + esc(C.fill(S.settings.openers[0] || '', C.vars(sampleCustomer('dewasa'), S.settings, now()))) + '"</small></span></label>') +
       '<label class="switch"><input type="checkbox" data-change="draft" data-k="islamic"' + (d.islamic ? ' checked' : '') + '><span class="sw-text"><b>Kandungan Islamik</b><small>Tidak dihantar kepada kumpulan "' + esc(S.settings.nonMuslimTag) + '".</small></span></label>' +
       '<label class="switch"><input type="checkbox" data-change="draft" data-k="on"' + (d.on !== false ? ' checked' : '') + '><span class="sw-text"><b>Aktif</b><small>Mesej tidak aktif dilangkau dalam sesi.</small></span></label>' +
       (isNew ? '<label class="switch"><input type="checkbox" data-change="draft" data-k="top"' + (d.top ? ' checked' : '') + '><span class="sw-text"><b>Letak paling atas</b><small>Dihantar dulu kepada semua penyimpan sebelum tips biasa.</small></span></label>' : '') +
@@ -1430,9 +1432,10 @@
       var d = campDraft(), m = msgById(d.msg); if (!m) return;
       var k = C.newCampaign(S, m, { groups: d.groups.slice(), status: d.status, tags: d.tags.slice(), skipReceived: d.skipReceived !== false }, now());
       if (!k.ids.length) { S.campaigns.shift(); toast('Tiada penerima untuk pilihan ini.', 'err'); return; }
-      if (d.body != null && d.body.trim() && d.body !== m.body) {
-        if (d.saveLib) { m.body = d.body; if (m.builtin) m.edited = true; } else k.body = d.body;
-      }
+      // Broadcast sentiasa simpan mesej penuh, supaya setiap penerima dapat tepat seperti pratonton
+      var tpl = C.fullTemplate(m, S.settings), body = d.body != null && d.body.trim() ? d.body : tpl;
+      k.body = body; k.full = true;
+      if (d.saveLib && body !== tpl) { m.body = body; m.full = true; m.opener = false; if (m.builtin) m.edited = true; }
       if (d.img) k.img = d.img;
       ui.camp = null; save(); go('broadcast/' + k.id);
       ui.pendingToast = 'Broadcast "' + k.title + '" disediakan untuk ' + k.ids.length + ' orang.';
@@ -1633,10 +1636,12 @@
     search: function (el) { ui.q = el.value; ui.climit = 150; refreshList(); },
     draft: function (el) { ui.draft[el.dataset.k] = el.value; refreshPreview(); },
     campBody: function (el) {
-      var d = campDraft(), m = msgById(d.msg); d.body = el.value;
-      var p = $('#campPrev'); if (p && m) p.innerHTML = C.waToHtml(broadcastText(ui.campSample || sampleCustomer('dewasa'), C.withBody(m, el.value)));
+      var d = campDraft(), m = msgById(d.msg); d.body = el.value; autoGrow(el);
+      var p = $('#campPrev'); if (p && m) p.innerHTML = C.waToHtml(broadcastText(ui.campSample || sampleCustomer('dewasa'), C.withBody(m, el.value, true)));
     }
   };
+  // Kotak teks membesar ikut isi, supaya semua baris mesej kelihatan tanpa skrol dalam kotak
+  function autoGrow(el) { if (!el) return; el.style.height = 'auto'; el.style.height = (el.scrollHeight + 2) + 'px'; }
   function refreshList() { var w = $('#clist-wrap'); if (w) w.innerHTML = customerList(now()); }
   function refreshPreview() {
     var p = $('#dprev'); if (!p || !ui.draft) return;
