@@ -579,7 +579,9 @@ t('Set 2 menyusul selepas Set 1', () => {
     let p = C.campaignPreview(st, zp1, { status: 'prospek' }, now);
     assert.deepStrictEqual(p.ids, [st.customers[1].id, st.customers[3].id, st.customers[5].id]);
     assert.strictEqual(p.why.junior, 1); assert.strictEqual(p.why.pendua, 1);
-    p = C.campaignPreview(st, zp1, {}, now); assert.strictEqual(p.why.sasaran, 1); // Ali ada PG Code
+    p = C.campaignPreview(st, zp1, {}, now); // pilihan pemilik diikut: Ali (ada PG Code) tetap dimasukkan, cuma amaran
+    assert.strictEqual(p.ids.length, 4); assert.strictEqual(p.mismatch, 1);
+    p = C.campaignPreview(st, zp1, { status: 'penyimpan' }, now); assert.deepStrictEqual(p.ids, [st.customers[0].id]); assert.strictEqual(p.mismatch, 1);
     p = C.campaignPreview(st, e01, { groups: ['muda'] }, now); assert.deepStrictEqual(p.ids, [st.customers[1].id]);
     st.customers[1].sent.E01 = 1; p = C.campaignPreview(st, e01, { groups: ['muda'] }, now); assert.strictEqual(p.why.diterima, 1);
     p = C.campaignPreview(st, e01, { groups: ['muda'], skipReceived: false }, now); assert.strictEqual(p.ids.length, 1);

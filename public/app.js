@@ -3,7 +3,7 @@
   'use strict';
   var C = window.SECore, X = window.SEXlsx, CONTENT = window.SE_CONTENT;
   var KEY = 'servisEmas.v1';
-  var VERSION = '1.3.2';
+  var VERSION = '1.3.3';
   var esc = C.escapeHtml;
   var S = null;
   var idx = null;
@@ -598,12 +598,18 @@
   function viewCampaignNew() {
     var d = campDraft(), n = now(), s = S.settings, m = d.msg ? msgById(d.msg) : null;
     var top = topBar('Sediakan broadcast', { back: '#/hari-ini' });
+    // Bilangan pada setiap pilihan, supaya jelas berapa orang dalam setiap kumpulan
+    var nStat = { semua: 0, penyimpan: 0, prospek: 0 }, nGrp = {};
+    S.customers.forEach(function (c) {
+      var pro = C.isProspect(c); nStat.semua++; nStat[pro ? 'prospek' : 'penyimpan']++;
+      if (d.status === 'semua' || (d.status === 'prospek') === pro) { var g = C.viewGroup(c, s, n) || 'tiada'; nGrp[g] = (nGrp[g] || 0) + 1; nGrp[''] = (nGrp[''] || 0) + 1; }
+    });
     var statusT = [['semua', 'Semua'], ['penyimpan', 'Ada PG Code'], ['prospek', 'Tiada PG Code']].map(function (x) {
-      return '<button type="button" data-act="campStatus" data-v="' + x[0] + '" aria-pressed="' + (d.status === x[0]) + '">' + x[1] + '</button>';
+      return '<button type="button" data-act="campStatus" data-v="' + x[0] + '" aria-pressed="' + (d.status === x[0]) + '">' + x[1] + '<span class="n">' + nStat[x[0]] + '</span></button>';
     }).join('');
     var gl = ['junior'].concat(C.AGE_GROUPS.map(function (g) { return g.id; })).concat(['tiada']);
-    var groupT = '<button type="button" data-act="campGroup" data-g="" aria-pressed="' + (!d.groups.length) + '">Semua</button>' + gl.map(function (g) {
-      return '<button type="button" data-act="campGroup" data-g="' + g + '" aria-pressed="' + (d.groups.indexOf(g) >= 0) + '">' + esc(g === 'tiada' ? 'Tiada umur' : C.groupLabel(g, s.ageBounds, false)) + '</button>';
+    var groupT = '<button type="button" data-act="campGroup" data-g="" aria-pressed="' + (!d.groups.length) + '">Semua<span class="n">' + (nGrp[''] || 0) + '</span></button>' + gl.map(function (g) {
+      return '<button type="button" data-act="campGroup" data-g="' + g + '" aria-pressed="' + (d.groups.indexOf(g) >= 0) + '">' + esc(g === 'tiada' ? 'Tiada umur' : C.groupLabel(g, s.ageBounds, false)) + '<span class="n">' + (nGrp[g] || 0) + '</span></button>';
     }).join('');
     var allTags = {};
     S.customers.forEach(function (c) { (c.tags || []).forEach(function (t) { allTags[t] = 1; }); });
@@ -612,7 +618,7 @@
     }).join('');
     var p = C.campaignPreview(S, m, d, n), w = p.why;
     var why = [[w.stop, 'minta STOP'], [w.telefon, 'tiada nombor sah'], [w.junior, 'akaun Junior (ditangguh)'], [w.islamik, 'kumpulan bukan Islam (skrip Islamik)'],
-      [w.sasaran, m && m.aud === 'prospek' ? 'dah ada PG Code (skrip khas bakal pelanggan)' : 'tiada PG Code (skrip khas penyimpan)'], [w.diterima, 'dah terima skrip ini'], [w.pendua, 'berkongsi nombor (dihantar sekali)']]
+      [w.diterima, 'dah terima skrip ini'], [w.pendua, 'berkongsi nombor (dihantar sekali)']]
       .filter(function (x) { return x[0]; }).map(function (x) { return '<li>' + x[0] + ' ' + esc(x[1]) + '</li>'; }).join('');
     var first = p.ids.slice(0, 3).map(byId).filter(Boolean);
     var sample = first[0] || sampleCustomer('dewasa');
@@ -632,11 +638,12 @@
       (d.img ? '<div class="attach"><img data-media="' + esc(d.img) + '" alt="Gambar lampiran"><div class="btn-row"><button class="btn sm danger" data-act="campImgDel">' + icon('trash') + 'Buang gambar</button></div></div>'
         : '<label class="btn file-btn">' + icon('image') + 'Pilih gambar<input type="file" accept="image/*" data-change="campImg"></label>') + '</section>' +
       '<section class="card"><h2 style="margin-bottom:12px">2. Pilih penerima</h2>' +
-      '<fieldset class="field"><legend>Status pembelian</legend><div class="toggles">' + statusT + '</div></fieldset>' +
+      '<fieldset class="field"><legend>Status pembelian</legend><div class="toggles">' + statusT + '</div><small>Semua = yang ada dan yang tiada PG Code.</small></fieldset>' +
       '<fieldset class="field"><legend>Kategori umur</legend><div class="toggles">' + groupT + '</div></fieldset>' +
       (tagT ? '<fieldset class="field"><legend>Kumpulan (pilihan)</legend><div class="toggles">' + tagT + '</div></fieldset>' : '') +
       '<label class="switch"><input type="checkbox" data-change="campSkipRecv"' + (d.skipReceived !== false ? ' checked' : '') + '><span class="sw-text"><b>Langkau yang dah terima skrip ini</b><small>Supaya tiada siapa terima skrip yang sama dua kali.</small></span></label></section>' +
       '<section class="card"><h2>3. Semakan</h2><p style="margin-top:8px"><span class="big-num">' + p.ids.length + '</span> <span class="muted">penerima' + (first.length ? ': ' + esc(first.map(pang).join(', ')) + (p.ids.length > 3 ? ' dan lain-lain' : '') : '') + '</span></p>' +
+      (p.mismatch && m ? '<div class="banner warn" style="margin:10px 0 0"><p>' + p.mismatch + ' penerima ' + (m.aud === 'prospek' ? '<b>dah ada PG Code</b>, tetapi skrip ini ditulis untuk <b>bakal pelanggan</b>' : '<b>tiada PG Code</b>, tetapi skrip ini ditulis untuk <b>penyimpan</b>') + '. Semak teks di atas supaya sesuai sebelum hantar.</p></div>' : '') +
       (why ? '<p class="small muted" style="margin:10px 0 4px">Tidak dimasukkan:</p><ul class="problems">' + why + '</ul>' : '') +
       (S.settings.dailyLimit ? '<p class="small muted" style="margin-top:10px">Cadangan had: ' + S.settings.dailyLimit + ' mesej sehari, supaya nombor anda tidak disekat. Broadcast besar boleh disambung esok.</p>' : '') +
       '<div class="btn-row" style="margin-top:14px"><button class="btn primary" data-act="campCreate"' + (m && p.ids.length ? '' : ' disabled') + '>Sediakan broadcast (' + p.ids.length + ' orang)</button></div></section>';
@@ -1596,7 +1603,12 @@
     impSheet: function (el) { ui.imp.si = +el.value; detectImp(); render(true); },
     impTag: function (el) { ui.imp.tag = el.value; },
     msgAge: function (el) { ui.msgAge = el.value; render(true); },
-    campMsg: function (el) { var d = campDraft(); d.msg = el.value; d.body = null; d.saveLib = false; render(true); },
+    campMsg: function (el) {
+      var d = campDraft(), m = msgById(el.value); d.msg = el.value; d.body = null; d.saveLib = false;
+      // Skrip khas: pilih status yang sepadan secara automatik (pemilik masih boleh tukar)
+      if (m && m.aud === 'prospek') d.status = 'prospek'; else if (m && m.aud === 'penyimpan') d.status = 'penyimpan';
+      render(true);
+    },
     campSkipRecv: function (el) { campDraft().skipReceived = el.checked; render(true); },
     campSaveLib: function (el) { campDraft().saveLib = el.checked; },
     campImg: function (el) {

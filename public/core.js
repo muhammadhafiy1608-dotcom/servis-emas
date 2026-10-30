@@ -555,7 +555,7 @@
   C.campaignPreview = function (state, msg, f, now) {
     now = now || new Date(); f = f || {};
     var s = state.settings, stopped = C.stopPhones(state.customers), seen = {};
-    var out = { ids: [], why: { stop: 0, telefon: 0, junior: 0, islamik: 0, sasaran: 0, diterima: 0, pendua: 0 } }, w = out.why;
+    var out = { ids: [], mismatch: 0, why: { stop: 0, telefon: 0, junior: 0, islamik: 0, diterima: 0, pendua: 0 } }, w = out.why;
     state.customers.forEach(function (c) {
       var g = C.viewGroup(c, s, now) || 'tiada';
       if (f.groups && f.groups.length && f.groups.indexOf(g) < 0) return;
@@ -566,10 +566,11 @@
       if (!C.phoneOk(c.phone)) { w.telefon++; return; }
       if (C.paused(c, s, now)) { w.junior++; return; }
       if (msg && msg.islamic && C.isNonMuslim(c, s)) { w.islamik++; return; }
-      if (msg && !C.audOk(msg, c)) { w.sasaran++; return; }
       if (msg && f.skipReceived !== false && c.sent && c.sent[msg.id] != null) { w.diterima++; return; }
       if (seen[c.phone]) { w.pendua++; return; }
       seen[c.phone] = 1; out.ids.push(c.id);
+      // Mod pilih sendiri: pilihan pemilik diikut walaupun di luar sasaran skrip (cth skrip bakal pelanggan kepada yang ada PG Code) — hanya amaran
+      if (msg && !C.audOk(msg, c)) out.mismatch++;
     });
     return out;
   };

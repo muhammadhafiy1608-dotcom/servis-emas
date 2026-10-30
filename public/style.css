@@ -483,3 +483,5 @@ table.prev th { color: var(--muted); font-weight: 700; }
 .camp-actions .btn:first-child { flex: 1 1 auto; }
 .camp-actions .btn.danger { flex: 0 0 auto; }
 textarea.autogrow { overflow: hidden; resize: none; }
+.toggles button .n { opacity: .7; margin-left: 5px; font-weight: 600; }
+.field fieldset small, fieldset.field small { display: block; color: var(--muted); font-size: 13px; margin-top: 6px; }

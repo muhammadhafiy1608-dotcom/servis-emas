@@ -14,7 +14,9 @@ Pemilik bukan pengaturcara: semua teks UI, mesej dan penjelasan kepada pemilik d
   App pilih penyimpan yang paling lama tidak menerima mesej (`C.ensureBatch`), dan setiap orang dapat mesej
   seterusnya dalam pustaka yang sepadan dengan kumpulan umurnya (`C.nextMessage`).
 - **Tiada PG Code = bakal pelanggan** (`customer.pg === ''`, `C.isProspect`; `null` = lajur PG tiada/tidak diketahui).
-  Diasingkan (penapis "Tiada PG Code"). Skrip khas ZP01–ZP10 `aud: 'prospek'` hanya untuk mereka; S00 `aud: 'penyimpan'`.
+  Diasingkan (penapis "Tiada PG Code"). Skrip khas ZP01–ZP10 `aud: 'prospek'`; S00 `aud: 'penyimpan'`. `aud` menapis dalam
+  mod automatik sahaja. Dalam broadcast pilihan, pilihan status pemilik DIIKUT (v1.3.3, pemilik pilih "Ada PG Code" untuk skrip
+  ZP dan dapat 0): `aud` hanya pilih status lalai bila skrip dipilih + amaran `campaignPreview().mismatch`. Butang tunjuk bilangan.
   Import semula tidak membuang PG Code yang dah ada.
 - **Mesej penuh dalam broadcast (v1.3.2):** kotak edit di Sediakan broadcast tunjuk mesej PENUH (`C.fullTemplate`: pembuka
   umum + isi + tandatangan + STOP) dan broadcast simpan `campaign.full = true` — pratonton = apa yang dihantar, tiada baris
