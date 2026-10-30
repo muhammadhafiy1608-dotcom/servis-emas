@@ -5,21 +5,42 @@ ilmu ringkas tentang emas, kewangan & kehidupan, diperibadikan ikut kumpulan umu
 Pemilik bukan pengaturcara: semua teks UI, mesej dan penjelasan kepada pemilik dalam **Bahasa Melayu santai**.
 
 ## Cara app berfungsi
-- Setiap hari ada sesi (lalai: Pagi 09:00 dan Petang 16:00, 30 orang setiap sesi; sesi Malam boleh dihidupkan).
+- **Mod lalai = pilih sendiri** (`settings.mode: 'pilih'`, permintaan pemilik Okt 2026: "biar aku yang pilih"). Pemilik
+  sediakan broadcast di Hari Ini → pilih skrip + penerima (status PG Code, kategori, kumpulan) → app bawa dari seorang
+  ke seorang (`S.campaigns`, `C.campaignPreview`/`newCampaign`/`campaignPending`; slotId `k:<id>` dalam app.js).
+  Satu nombor sekali; STOP, Junior ditangguh, skrip Islamik/bukan Islam, dan "dah terima skrip ini" dikecualikan.
+  Had harian (`settings.dailyLimit`, lalai 60) hanya amaran. Jangan tukar balik ke automatik tanpa arahan pemilik.
+- Mod automatik (`mode: 'auto'`): setiap hari ada sesi (lalai: Pagi 09:00 dan Petang 16:00, 30 orang setiap sesi).
   App pilih penyimpan yang paling lama tidak menerima mesej (`C.ensureBatch`), dan setiap orang dapat mesej
   seterusnya dalam pustaka yang sepadan dengan kumpulan umurnya (`C.nextMessage`).
+- **Tiada PG Code = bakal pelanggan** (`customer.pg === ''`, `C.isProspect`; `null` = lajur PG tiada/tidak diketahui).
+  Diasingkan (penapis "Tiada PG Code"). Skrip khas ZP01–ZP10 `aud: 'prospek'` hanya untuk mereka; S00 `aud: 'penyimpan'`.
+  Import semula tidak membuang PG Code yang dah ada.
 - **Tiada penghantaran automatik.** Butang Hantar membuka pautan `wa.me` / `whatsapp://` dengan mesej siap ditulis;
   pemilik tekan hantar dalam WhatsApp. Jangan tambah automasi WhatsApp tidak rasmi (melanggar terma, risiko nombor disekat).
 - Personalisasi: `{panggilan}` (nama sahaja bawah 30, Tuan/Puan + nama untuk 30 ke atas — tetapan `honorific: 'umur'`),
+  gelaran per penyimpan `customer.title` daripada lajur SALUTATION (`C.titleKind`): gelaran dari Excel SENTIASA dipakai tanpa
+  mengira umur (pemilik mahu broadcast ikut Excel; hanya tetapan "Nama sahaja" membuangnya), Mama/Abah = tanpa nama,
+  nilai lain = nama kawan dipakai seperti ditulis. Peraturan "bawah 30 nama sahaja" hanya untuk penyimpan tanpa gelaran.
+  Dengan gelaran, `customer.nick` (lajur NICKNAME) ialah nama pendek yang digabung: Tuan + Daniel = Tuan Daniel.
   ayat pembuka ikut umur (`settings.openersByAge`), set ilmu ikut umur (`message.ages`), ucapan hari jadi ikut umur.
-- Kumpulan umur: `muda` (<30), `dewasa` (30–39), `pertengahan` (40–49), `matang` (50–59, label "Pra-bersara"),
-  `warga` (60+). Had boleh diubah (`settings.ageBounds`). Penetapan manual per penyimpan: `customer.grp`.
+- Kumpulan umur ikut lajur Category dalam Excel pemilik (v1.2): `muda` = **MB30** (18–25), `dewasa` = **CX** (26–35),
+  `pertengahan` = **CY** (36–45), `matang` = **CZ** (46–55), `warga` = **Pencen** (56+); had lalai `[26, 36, 46, 56]`
+  (`settings.ageBounds`, boleh diubah; had lama 30/40/50/60 dipindah sekali melalui `boundsV2`). **Junior** (<18) dipapar
+  berasingan (`C.viewGroup`) tetapi dikira `muda` untuk pilihan mesej. Penetapan manual per penyimpan: `customer.grp`.
 - Penyimpan dalam kumpulan "Bukan Islam" disapa "Salam sejahtera" dan tidak menerima mesej `islamic: true`.
-- STOP (opt-out) dihormati: `customer.optOut` tidak pernah direset oleh import.
+- STOP (opt-out) dihormati: `customer.optOut` tidak pernah direset oleh import. STOP seorang = nombor itu tidak dihantar langsung.
+- **Satu nombor, satu mesej** (`C.primaryIds`): rekod berkongsi nombor (keluarga) — hanya rekod pertama yang layak dihantar;
+  jika ahli sekeluarga berhari jadi, nombor itu tiada broadcast hari itu. Nombor pengganti (cth 010-000 0000, `C.phoneDummy`)
+  dikira tiada nombor dan dilangkau semasa import.
+- **Akaun Junior (bawah 18) ditangguh** (`settings.pauseJunior`, lalai hidup, permintaan pemilik Okt 2026): tiada broadcast dan
+  ucapan hari jadi; nombor yang dikongsi dengan ibu bapa beralih kepada ibu bapa.
 
 ## Data & privasi
 - **Tiada pelayan.** Semua data dalam `localStorage` peranti pemilik (kunci `servisEmas.v1`). Netlify hanya hos fail statik.
-- Import Excel/CSV/tampal (`public/xlsx-lite.js` membaca .xlsx tanpa pustaka luar). Import semula **menggabungkan** ikut
+- Import Excel/CSV/tampal (`public/xlsx-lite.js` membaca .xlsx tanpa pustaka luar). Excel pemilik ("Master Database", Google
+  Sheets) ada lajur PG CODE, PHONE, NAME, DOB (bulan/hari/tahun!), AGE, Range Umur, Category (MB30/CX/CY/CZ/Junior/Pencen),
+  SALUTATION, NICKNAME, REMARK… Format tarikh dikesan per lajur (`C.dateOrder`). Fixture rekaan: `tests/fixtures/master-database-rekaan.csv`. Import semula **menggabungkan** ikut
   nombor telefon (`C.mergeImport`): rekod sedia ada dikemas kini, sejarah mesej & STOP kekal. Pemilik import semula setiap 2 minggu.
 - No. IC hanya digunakan untuk tarikh lahir & jantina, **tidak disimpan**.
 - Backup/pulih melalui fail JSON. **Jangan commit data penyimpan sebenar** ke repo ini (lihat `.gitignore`); fixture ujian adalah data rekaan.
@@ -53,7 +74,18 @@ tools/             make-template.py, make-icons.py, build-zip.sh
   merujuk ID); mesej yang diubah pengguna ditanda `edited: true` dan tidak ditimpa (`upgradeContent` dalam app.js).
   Mesej yang pengguna padam disimpan dalam `S.removed` dan tidak dikembalikan.
 - **Gaya kandungan:** santai, ayat pendek, "..." dan pusingan "Tapi...", guna "kita", sedikit perkataan Inggeris —
-  ala Tn Mohd Zulkifli Shafie (mentor pemilik, mohdzulkifli.com). Setiap mesej ≤ 50 patah perkataan (diuji).
+  ala Tn Mohd Zulkifli Shafie (mentor pemilik, www.mohdzulkifli.com). Setiap mesej ≤ 50 patah perkataan (diuji).
+  Analisis blog (Okt 2026, ~300 artikel): baris pendek (purata 12 perkataan), "..." kerap, "saya" + "kita" (hampir tiada
+  "anda"), kontras ringkas ("Gaji – Simpan = Belanja", "fokus gram, bukan harga", "gold saver, bukan gold investor",
+  "kaya lain, mewah lain"), emoji sedikit. Set `SKRIP` dalam content.js (ZA–ZE, 8 setiap kategori, `src` = artikel
+  rujukan) dihantar dahulu selepas S00. Tulis semula dengan ayat sendiri; jangan salin artikel; tiada angka pulangan.
+- **Skrip kategori — cara kerja yang pemilik minta (Okt 2026):**
+  - Ubah **hanya** skrip yang pemilik sebut (ikut ID, cth ZB03). Skrip lain jangan diusik. Kekalkan ID supaya yang dah
+    terima tak dapat lagi; jika pemilik mahu versi baharu dihantar semula, beri ID baharu.
+  - Set seterusnya disediakan **sebelum** set lama habis: Set 1 = ZA01–08…ZE01–08, Set 2 = ZA09–16…ZE09–16. Set baharu
+    disisip selepas set terakhir setiap kumpulan (sebelum pustaka asal). Guna artikel yang belum dipakai (semak `src`).
+  - App beri amaran di Hari Ini dan kad "Skrip kategori" (Mesej → Pustaka) bila ≥80% penerima sesuatu kategori dah
+    terima semua skrip (`C.scriptStats`, `C.SCRIPT_LOW`) — itu masa sediakan set seterusnya.
   Tiada janji untung/pulangan. Fakta (KWSP, zakat, PERKESO, Public Gold) mesti disemak sumber terkini; jika tak pasti, jangan
   masukkan angka. Kandungan agama → `islamic: true`. Placeholder dibenarkan: `{panggilan} {nama} {nama_pendek} {salam}
   {waktu} {hari} {nama_saya}`. Kandungan mesti siap guna — tiada ruang kosong untuk diisi pemilik.

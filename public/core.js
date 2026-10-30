@@ -71,7 +71,9 @@
     if (d.charAt(0) === '1' && (d.length === 9 || d.length === 10)) return '60' + d;
     return d;
   };
-  C.phoneOk = function (d) { return /^\d{8,15}$/.test(d || ''); };
+  // Nombor pengganti dalam Excel (cth 010-000 0000) = tiada nombor sebenar
+  C.phoneDummy = function (d) { return /^601\d?0{7,}$/.test(d || ''); };
+  C.phoneOk = function (d) { return /^\d{8,15}$/.test(d || '') && !C.phoneDummy(d); };
   C.phoneIsMy = function (d) { return /^601\d{8,9}$/.test(d || ''); };
   C.fmtPhone = function (d) {
     if (!d) return '';
@@ -110,7 +112,8 @@
     if (!dob) return null;
     return { dob: dob, gender: (+d.charAt(11)) % 2 ? 'L' : 'P' };
   };
-  C.parseDob = function (v) {
+  // order 'mdy' = lajur ini format bulan/hari/tahun (lihat C.dateOrder); lalai hari/bulan/tahun
+  C.parseDob = function (v, order) {
     if (v == null || v === '') return '';
     if (v instanceof Date && !isNaN(v)) return mkDob(v.getFullYear(), v.getMonth() + 1, v.getDate());
     var s = String(v).trim();
@@ -122,7 +125,7 @@
     if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})(?:[-\/.](\d{4}|\d{2}))?(?:[\sT]|$)/))) {
       var a = +m[1], b = +m[2], y = m[3];
       if (y && y.length === 2) y = fixYY(+y);
-      if (a <= 12 && b > 12) return mkDob(y, a, b); // format bulan/hari
+      if (a <= 12 && (b > 12 || order === 'mdy')) return mkDob(y, a, b); // format bulan/hari
       return mkDob(y, b, a);
     }
     if ((m = s.match(/^(\d{1,2})[\s\-\/.]*([a-z]+)\.?[\s\-\/.,]*(\d{4}|\d{2})?$/))) {
@@ -142,6 +145,17 @@
     var ic = C.icInfo(s);
     if (ic) return ic.dob;
     return '';
+  };
+  // Format satu lajur tarikh: jika lebih banyak nilai seperti 3/15/1990 (bahagian kedua > 12) daripada 15/3/1990,
+  // seluruh lajur dibaca bulan/hari/tahun — termasuk 3/5/1990 yang sebaliknya dibaca 3 Mei.
+  C.dateOrder = function (values) {
+    var dm = 0, md = 0;
+    (values || []).forEach(function (v) {
+      var m = String(v == null ? '' : v).trim().match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4}|\d{2})$/);
+      if (!m) return;
+      if (+m[1] > 12) dm++; else if (+m[2] > 12) md++;
+    });
+    return md > dm ? 'mdy' : 'dmy';
   };
   // Tahun lahir sahaja (cth "1990") atau umur (cth "35", "35 tahun", "30-39")
   C.parseBirthYear = function (v) {
@@ -165,6 +179,11 @@
   C.parseAgeGroup = function (v) {
     var s = String(v == null ? '' : v).toLowerCase().replace(/[^a-z]/g, '');
     if (!s) return '';
+    if (/^(mb|junior)$/.test(s)) return 'muda'; // MB30 (nombor dibuang di atas)
+    if (s === 'cx') return 'dewasa';
+    if (s === 'cy') return 'pertengahan';
+    if (s === 'cz') return 'matang';
+    if (s === 'pencen') return 'warga';
     if (/^(muda|belia|remaja|youth|young|anakmuda|gen?z)/.test(s)) return 'muda';
     if (/^(prabersara|prapencen|prapesara|matang|menjelangpencen|preretire)/.test(s)) return 'matang';
     if (/^(wargaemas|warga|senior|pesara|bersara|retire|elder)/.test(s)) return 'warga';
@@ -260,31 +279,66 @@
     return { short: C.titleCase(words[0]), gender: gender };
   };
 
+  /* Gelaran (lajur Salutation/Gelaran):
+     formal  = Tuan, Puan, Cik… — sentiasa dipakai, kecuali tetapan panggilan "Nama sahaja"
+     tetap   = Cikgu, Dr, Ustaz, Boss, Kak… — sentiasa dipakai di depan nama
+     sendiri = Mama, Abah… — dipakai tanpa nama
+     Nilai lain dianggap nama yang pemilik mahu guna (kawan-kawan) dan dipakai seperti ditulis. */
+  var T_FORMAL = ['tuan', 'tn', 'puan', 'pn', 'cik', 'encik', 'en', 'mr', 'mrs', 'ms', 'miss', 'madam', 'mdm', 'sir'];
+  var T_FIXED = ['dr', 'prof', 'haji', 'hj', 'hajah', 'hjh', 'ustaz', 'ustazah', 'ust', 'cikgu', 'dato', 'datuk', 'datin', 'ir', 'ts',
+    'boss', 'bos', 'kak', 'kakak', 'abang', 'abg', 'bang', 'pak', 'pakcik', 'makcik', 'bro', 'sis', 'uncle', 'aunty', 'auntie',
+    'adik', 'dik', 'along', 'angah', 'tok', 'atuk', 'nenek', 'opah'];
+  var T_ALONE = ['mama', 'papa', 'mak', 'emak', 'abah', 'ayah', 'ibu', 'ummi', 'umi', 'mummy', 'mommy', 'daddy', 'bonda', 'ayahanda'];
+  C.titleKind = function (t) {
+    var w = String(t || '').trim().split(/\s+/).map(nk).filter(Boolean);
+    if (!w.length) return '';
+    if (w.length === 1 && T_ALONE.indexOf(w[0]) >= 0) return 'sendiri';
+    var kind = 'formal';
+    for (var i = 0; i < w.length; i++) {
+      var x = w[i];
+      if (T_FIXED.indexOf(x) >= 0 || (i > 0 && /^(sri|seri)$/.test(x)) || (x === 'tan' && /^(sri|seri)$/.test(w[i + 1] || ''))) kind = 'tetap';
+      else if (T_FORMAL.indexOf(x) < 0) return '';
+    }
+    return kind;
+  };
+
   C.genderOf = function (c) { return c.gender || C.nameInfo(c.name).gender || ''; };
 
   C.panggilan = function (c, s, now) {
-    if (c.nick && String(c.nick).trim()) return String(c.nick).trim();
+    var nick = String(c.nick || '').trim(), title = String(c.title || '').trim();
+    var kind = title ? C.titleKind(title) : '';
+    if (title && !kind) return title; // nama yang ditulis dalam lajur gelaran
+    if (kind === 'sendiri') return C.titleCase(title);
+    // Panggilan penuh (cth "Kak Ros") dipakai terus; dengan gelaran, panggilan = nama pendek yang digabung
+    if (nick && (!kind || C.titleKind(nick.split(/\s+/)[0]))) return nick;
     var info = C.nameInfo(c.name);
-    if (!info.short) return 'tuan/puan';
+    var plain = nick || info.short;
+    var base = nick || (info.full ? info.short.split(' ')[0] : info.short); // nama Cina: Tuan Lim / Puan Tan
+    if (!plain) return kind ? C.titleCase(title) : 'tuan/puan';
+    if (kind === 'tetap') return C.titleCase(title) + ' ' + base;
     var mode = (s && s.honorific) || 'tuanpuan';
-    if (mode === 'nama') return info.short;
-    if (mode === 'umur') { var age = C.ageOf(c, now); if (age != null && age < 30) return info.short; }
+    if (mode === 'nama') return plain;
+    if (kind) return C.titleCase(title) + ' ' + base; // gelaran dari Excel diikut tanpa mengira umur
+    if (mode === 'umur') { var age = C.ageOf(c, now); if (age != null && age < 30) return plain; }
     var g = c.gender || info.gender;
-    var base = info.full ? info.short.split(' ')[0] : info.short; // nama Cina: Tuan Lim / Puan Tan
     if (g === 'L') return 'Tuan ' + base;
     if (g === 'P') return 'Puan ' + base;
-    return info.short;
+    return plain;
   };
 
   /* ================= Kumpulan umur ================= */
+  // Label ikut lajur Category dalam Excel pemilik: Junior <18, MB30 18–25, CX 26–35, CY 36–45, CZ 46–55, Pencen 56+.
+  // Id dalaman dikekalkan (mesej & tetapan merujuk id). Junior bukan kumpulan mesej sendiri: untuk pilihan mesej
+  // dia dikira 'muda', tetapi dipaparkan sebagai Junior (C.viewGroup) dan boleh ditangguh (settings.pauseJunior).
   C.AGE_GROUPS = [
-    { id: 'muda', label: 'Muda' },
-    { id: 'dewasa', label: 'Dewasa' },
-    { id: 'pertengahan', label: 'Pertengahan' },
-    { id: 'matang', label: 'Pra-bersara' },
-    { id: 'warga', label: 'Warga emas' }
+    { id: 'muda', label: 'MB30' },
+    { id: 'dewasa', label: 'CX' },
+    { id: 'pertengahan', label: 'CY' },
+    { id: 'matang', label: 'CZ' },
+    { id: 'warga', label: 'Pencen' }
   ];
-  C.DEFAULT_BOUNDS = [30, 40, 50, 60];
+  C.DEFAULT_BOUNDS = [26, 36, 46, 56];
+  C.OLD_BOUNDS = [30, 40, 50, 60];
   C.ageGroupOf = function (age, bounds) {
     if (age == null) return null;
     var b = bounds && bounds.length === 4 ? bounds : C.DEFAULT_BOUNDS;
@@ -298,10 +352,13 @@
     if (c.grp && C.AGE_GROUPS.some(function (g) { return g.id === c.grp; })) return c.grp; // ditetapkan manual
     return C.ageGroupOf(C.ageOf(c, now), s && s.ageBounds);
   };
+  // Kumpulan untuk paparan: Junior diasingkan daripada MB30
+  C.viewGroup = function (c, s, now) { return C.isJunior(c, now) ? 'junior' : C.groupOf(c, s, now); };
   C.groupRange = function (id, bounds) {
     var b = bounds && bounds.length === 4 ? bounds : C.DEFAULT_BOUNDS;
     switch (id) {
-      case 'muda': return 'bawah ' + b[0];
+      case 'junior': return 'bawah ' + C.JUNIOR_AGE;
+      case 'muda': return b[0] > C.JUNIOR_AGE ? C.JUNIOR_AGE + '–' + (b[0] - 1) : 'bawah ' + b[0];
       case 'dewasa': return b[0] + '–' + (b[1] - 1);
       case 'pertengahan': return b[1] + '–' + (b[2] - 1);
       case 'matang': return b[2] + '–' + (b[3] - 1);
@@ -311,6 +368,7 @@
   };
   C.groupLabel = function (id, bounds, withRange) {
     if (!id) return 'Tiada umur';
+    if (id === 'junior') return withRange === false ? 'Junior' : 'Junior (' + C.groupRange(id, bounds) + ')';
     var g = C.AGE_GROUPS.filter(function (x) { return x.id === id; })[0];
     if (!g) return id;
     return withRange === false ? g.label : g.label + ' (' + C.groupRange(id, bounds) + ')';
@@ -336,10 +394,20 @@
     return (C.isNonMuslim(c, s) ? s.salamNonMuslim : s.salam) || '';
   };
 
+  // Tiada PG Code (lajur PG CODE wujud tetapi kosong) = belum buat belian: bakal pelanggan. null = tidak diketahui.
+  C.isProspect = function (c) { return c.pg === ''; };
+  // m.aud: 'prospek' = hanya bakal pelanggan, 'penyimpan' = hanya yang dah beli, kosong = semua
+  C.audOk = function (m, c) {
+    if (m.aud === 'prospek') return C.isProspect(c);
+    if (m.aud === 'penyimpan') return !C.isProspect(c);
+    return true;
+  };
+
   /* ================= Pemilihan mesej ================= */
   C.msgMatches = function (m, c, s, now) {
     if (m.on === false) return false;
     if (m.islamic && C.isNonMuslim(c, s)) return false;
+    if (!C.audOk(m, c)) return false;
     if (m.ages && m.ages.length) {
       var g = C.groupOf(c, s, now);
       if (!g || m.ages.indexOf(g) < 0) return false;
@@ -365,9 +433,45 @@
     return { left: n, total: total };
   };
 
-  C.primaryIds = function (customers) {
-    var seen = {}, ids = {};
-    customers.forEach(function (c) { if (c.phone && !seen[c.phone]) { seen[c.phone] = 1; ids[c.id] = 1; } });
+  // Akaun Junior (bawah 18) boleh ditangguh: tiada broadcast & ucapan hari jadi selagi tetapan pauseJunior hidup
+  C.JUNIOR_AGE = 18;
+  C.isJunior = function (c, now) { var a = C.ageOf(c, now); return a != null && a < C.JUNIOR_AGE; };
+  C.paused = function (c, s, now) { return !!(s && s.pauseJunior) && C.isJunior(c, now); };
+
+  // Skrip kategori (mesej yang ada src): berapa penerima dah terima semua skrip kumpulannya.
+  // Bila hampir semua dah habis, pemilik perlu minta set skrip baharu.
+  C.SCRIPT_LOW = 0.8;
+  C.scriptStats = function (state, now) {
+    now = now || new Date();
+    var s = state.settings, out = {}, prim = C.primaryIds(state.customers, s, now);
+    C.AGE_GROUPS.forEach(function (g) { out[g.id] = { people: 0, done: 0, scripts: 0 }; });
+    state.messages.forEach(function (m) { if (m.src && m.on !== false) (m.ages || []).forEach(function (g) { if (out[g]) out[g].scripts++; }); });
+    state.customers.forEach(function (c) {
+      if (!prim[c.id] || !C.phoneOk(c.phone)) return;
+      var g = C.groupOf(c, s, now); if (!out[g]) return;
+      var mine = state.messages.filter(function (m) { return m.src && C.msgMatches(m, c, s, now); });
+      if (!mine.length) return;
+      out[g].people++;
+      if (mine.every(function (m) { return c.sent && c.sent[m.id] != null; })) out[g].done++;
+    });
+    return out;
+  };
+  C.scriptsLow = function (stats) {
+    return C.AGE_GROUPS.map(function (g) { return g.id; }).filter(function (g) { var x = stats[g]; return x && x.people >= 5 && x.done / x.people >= C.SCRIPT_LOW; });
+  };
+
+  // Satu nombor = satu penerima: rekod pertama yang tidak ditangguh. Nombor yang ada STOP tidak dihantar langsung.
+  C.stopPhones = function (customers) {
+    var out = {};
+    customers.forEach(function (c) { if (c.optOut && c.phone) out[c.phone] = 1; });
+    return out;
+  };
+  C.primaryIds = function (customers, s, now) {
+    var stopped = C.stopPhones(customers), seen = {}, ids = {};
+    customers.forEach(function (c) {
+      if (!c.phone || seen[c.phone] || stopped[c.phone] || C.paused(c, s, now)) return;
+      seen[c.phone] = 1; ids[c.id] = 1;
+    });
     return ids;
   };
 
@@ -375,15 +479,20 @@
   C.blockReason = function (c, ctx) {
     if (c.optOut) return 'stop';
     if (!C.phoneOk(c.phone)) return 'telefon';
+    if (C.paused(c, ctx.s, ctx.now)) return 'junior';
+    if (ctx.stopPhones[c.phone]) return 'stop';
     if (!ctx.primary[c.id]) return 'pendua';
-    if (C.isBirthday(c.dob, ctx.now)) return 'harijadi';
+    if (ctx.bdayPhones[c.phone]) return 'harijadi'; // nombor ini dapat ucapan hari jadi hari ini — cukup satu mesej
     if (c.last != null && ctx.today - c.last < ctx.s.minGapDays) return 'jarak';
     if (!C.nextMessage(c, ctx.messages, ctx.s, ctx.today, ctx.now)) return 'habis';
     return null;
   };
   C.makeCtx = function (state, now) {
     now = now || new Date();
-    return { s: state.settings, messages: state.messages, now: now, today: C.dayNum(now), primary: C.primaryIds(state.customers) };
+    var bdayPhones = {};
+    state.customers.forEach(function (c) { if (c.phone && C.isBirthday(c.dob, now) && !C.paused(c, state.settings, now)) bdayPhones[c.phone] = 1; });
+    return { s: state.settings, messages: state.messages, now: now, today: C.dayNum(now), primary: C.primaryIds(state.customers, state.settings, now),
+      stopPhones: C.stopPhones(state.customers), bdayPhones: bdayPhones };
   };
   C.eligiblePool = function (state, exclude, now) {
     var ctx = C.makeCtx(state, now);
@@ -438,6 +547,55 @@
       var p = k.split('-'); var dn = C.dayNum(new Date(+p[0], +p[1] - 1, +p[2]));
       if (dn < cutoff) delete state.batches[k];
     });
+  };
+
+  /* ================= Broadcast pilihan: pemilik pilih skrip & penerima ================= */
+  // f = { groups: [] (kosong = semua; 'junior','muda',…,'warga','tiada'), status: 'semua'|'penyimpan'|'prospek',
+  //       tags: [], skipReceived: true }. Satu nombor = satu penerima dalam senarai.
+  C.campaignPreview = function (state, msg, f, now) {
+    now = now || new Date(); f = f || {};
+    var s = state.settings, stopped = C.stopPhones(state.customers), seen = {};
+    var out = { ids: [], why: { stop: 0, telefon: 0, junior: 0, islamik: 0, sasaran: 0, diterima: 0, pendua: 0 } }, w = out.why;
+    state.customers.forEach(function (c) {
+      var g = C.viewGroup(c, s, now) || 'tiada';
+      if (f.groups && f.groups.length && f.groups.indexOf(g) < 0) return;
+      if (f.status === 'prospek' && !C.isProspect(c)) return;
+      if (f.status === 'penyimpan' && C.isProspect(c)) return;
+      if (f.tags && f.tags.length && !f.tags.some(function (t) { return C.hasTag(c, t); })) return;
+      if (c.optOut || stopped[c.phone]) { w.stop++; return; }
+      if (!C.phoneOk(c.phone)) { w.telefon++; return; }
+      if (C.paused(c, s, now)) { w.junior++; return; }
+      if (msg && msg.islamic && C.isNonMuslim(c, s)) { w.islamik++; return; }
+      if (msg && !C.audOk(msg, c)) { w.sasaran++; return; }
+      if (msg && f.skipReceived !== false && c.sent && c.sent[msg.id] != null) { w.diterima++; return; }
+      if (seen[c.phone]) { w.pendua++; return; }
+      seen[c.phone] = 1; out.ids.push(c.id);
+    });
+    return out;
+  };
+  C.newCampaign = function (state, msg, f, now) {
+    now = now || new Date();
+    var p = C.campaignPreview(state, msg, f, now);
+    state.seq = (state.seq || 0) + 1;
+    var k = { id: 'k' + now.getTime().toString(36) + state.seq, msg: msg.id, title: msg.title, filter: f, created: now.getTime(), ids: p.ids, done: {}, skip: {} };
+    state.campaigns = state.campaigns || [];
+    state.campaigns.unshift(k);
+    return k;
+  };
+  C.campaignPending = function (state, k) {
+    var by = {};
+    state.customers.forEach(function (c) { by[c.id] = c; });
+    var stopped = C.stopPhones(state.customers);
+    return k.ids.filter(function (id) { var c = by[id]; return c && !k.done[id] && !k.skip[id] && !c.optOut && !stopped[c.phone]; });
+  };
+  // Bilangan mesej broadcast dihantar hari ini (sesi + broadcast pilihan) — untuk had harian
+  C.sentToday = function (state, now) {
+    now = now || new Date();
+    var start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(), n = 0;
+    var day = (state.batches || {})[C.isoDay(now)] || {};
+    Object.keys(day).forEach(function (slot) { n += Object.keys(day[slot].done || {}).length; });
+    (state.campaigns || []).forEach(function (k) { Object.keys(k.done || {}).forEach(function (id) { if (k.done[id].t >= start) n++; }); });
+    return n;
   };
 
   /* ================= Isi & susun mesej ================= */
@@ -557,10 +715,12 @@
   C.FIELDS = [
     { key: 'name', label: 'Nama', req: true },
     { key: 'phone', label: 'No. telefon', req: true },
+    { key: 'pg', label: 'PG Code (kosong = bakal pelanggan)' },
     { key: 'dob', label: 'Tarikh lahir' },
     { key: 'ic', label: 'No. IC (untuk tarikh lahir sahaja)' },
     { key: 'age', label: 'Umur / kumpulan umur' },
-    { key: 'nick', label: 'Panggilan' },
+    { key: 'nick', label: 'Panggilan / nama pendek' },
+    { key: 'title', label: 'Gelaran (Tuan/Puan/Cik)' },
     { key: 'gender', label: 'Jantina' },
     { key: 'tags', label: 'Kumpulan' },
     { key: 'note', label: 'Catatan' },
@@ -570,7 +730,9 @@
   C.guessField = function (header) {
     var k = hk(header);
     if (!k) return '';
-    if (/panggil|nick|gelaran/.test(k)) return 'nick';
+    if (/^(pgcode|kodpg|pg|pgno|nopg|pgid)$/.test(k)) return 'pg';
+    if (/salutation|gelaran|^title$|honorific/.test(k)) return 'title';
+    if (/panggil|nick/.test(k)) return 'nick';
     if (/akaun|account|^acc|ahli|member|kod|code|^pg|emel|email|alamat|address|poskod|negeri|state|bandar|city|baki|balance|gram|tarikhdaftar|daftar|regist/.test(k)) return '';
     if (/^(ic|noic|icno|nric|mykad|nokp|kp|nokadpengenalan|kadpengenalan|pengenalan|identitycard|icnumber|nombuoric|nomboric|noickp)$/.test(k) || /mykad|nric|pengenalan|^noic|^nombor?ic|kp$/.test(k)) return 'ic';
     if (/^(tahunlahir|yearofbirth|birthyear)$/.test(k)) return 'age';
@@ -618,11 +780,11 @@
     if (/^(p|f|w|perempuan|female|wanita)$/.test(s)) return 'P';
     return '';
   };
-  C.rowToCustomer = function (row, map) {
+  C.rowToCustomer = function (row, map, opts) {
     function g(k) { return map[k] == null ? '' : row[map[k]]; }
     var name = C.displayName(g('name'));
     var phone = C.normPhone(g('phone'));
-    var dob = C.parseDob(g('dob'));
+    var dob = C.parseDob(g('dob'), opts && opts.dateOrder);
     var by = 0;
     var gender = C.parseGender(g('gender'));
     var ic = C.icInfo(g('ic'));
@@ -642,6 +804,8 @@
       grp: grp,
       gender: gender,
       nick: String(g('nick') || '').trim(),
+      title: String(g('title') || '').trim(),
+      pg: map.pg == null ? null : String(g('pg') == null ? '' : g('pg')).trim().toUpperCase(),
       tags: C.parseTags(g('tags')),
       note: String(g('note') || '').trim(),
       salam: String(g('salam') || '').trim(),
@@ -657,7 +821,7 @@
     state.seq = (state.seq || 0) + 1;
     return {
       id: C.uid(), seq: state.seq, name: data.name || '', phone: data.phone || '', dob: data.dob || '', by: data.by || 0, grp: data.grp || '',
-      gender: data.gender || '', nick: data.nick || '', tags: data.tags || [], note: data.note || '', salam: data.salam || '',
+      gender: data.gender || '', nick: data.nick || '', title: data.title || '', pg: data.pg == null ? null : data.pg, tags: data.tags || [], note: data.note || '', salam: data.salam || '',
       optOut: false, demo: !!data.demo, added: C.dayNum(now || new Date()), sent: {}, last: null, bday: {}
     };
   };
@@ -676,14 +840,15 @@
       var tags = (it.tags || []).slice();
       if (opts.extraTag) C.parseTags(opts.extraTag).forEach(function (t) { if (!tags.some(function (x) { return x.toLowerCase() === t.toLowerCase(); })) tags.push(t); });
       if (match) {
-        ['name', 'dob', 'gender', 'nick', 'note', 'salam', 'grp'].forEach(function (k) { if (it[k]) match[k] = it[k]; });
+        ['name', 'dob', 'gender', 'nick', 'title', 'note', 'salam', 'grp'].forEach(function (k) { if (it[k]) match[k] = it[k]; });
+        if (it.pg != null && (it.pg || match.pg == null)) match.pg = it.pg; // PG Code tak dibuang bila sel kosong
         if (it.by && !match.dob) { match.by = it.by; match.grp = ''; }
         if (it.dob) { match.by = 0; match.grp = ''; }
         tags.forEach(function (t) { if (!C.hasTag(match, t)) match.tags.push(t); });
         res.updated++;
       } else {
         if (list.length) res.sharedPhone++;
-        var c = C.newCustomer(state, { name: it.name, phone: it.phone, dob: it.dob, by: it.by, grp: it.grp, gender: it.gender, nick: it.nick, tags: tags, note: it.note, salam: it.salam });
+        var c = C.newCustomer(state, { name: it.name, phone: it.phone, dob: it.dob, by: it.by, grp: it.grp, gender: it.gender, nick: it.nick, title: it.title, pg: it.pg, tags: tags, note: it.note, salam: it.salam });
         state.customers.push(c);
         (byPhone[c.phone] = byPhone[c.phone] || []).push(c);
         res.added++;

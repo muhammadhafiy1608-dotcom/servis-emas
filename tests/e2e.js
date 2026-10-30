@@ -38,6 +38,12 @@ const st = page => page.evaluate(() => window.SEApp.state());
   ok((await page.textContent('.hero h1')).includes('Selamat pagi'), 'greeting pagi');
   await shot(page, '01-home-empty');
 
+  // Ujian sesi automatik: tukar mod (lalai kini "pilih sendiri")
+  await page.goto(URL + '#/tetapan'); await page.waitForSelector('select[data-s="mode"]');
+  await page.selectOption('select[data-s="mode"]', 'auto');
+  ok((await st(page)).settings.mode === 'auto', 'mod automatik dipilih');
+  await page.goto(URL + '#/hari-ini'); await page.waitForSelector('.hero h1');
+
   console.log('2. Data contoh');
   await page.click('text=Guna data contoh');
   await page.waitForSelector('.bday-list');
@@ -206,12 +212,12 @@ const st = page => page.evaluate(() => window.SEApp.state());
   await page.waitForSelector('.mlist li');
   await shot(page, '13-messages');
   const nMsg = await page.$$eval('.mlist li', e => e.length);
-  ok(nMsg === 166, 'library 166 messages: ' + nMsg);
+  ok(nMsg === 256, 'library 256 messages (termasuk 10 skrip bakal pelanggan): ' + nMsg);
   const setRows = await page.$$eval('.setlist li', e => e.map(x => x.textContent));
-  ok(setRows.length === 5 && setRows.every(t => /70$/.test(t)), 'set ilmu: 5 kumpulan x 70 mesej: ' + setRows.join(' | '));
+  ok(setRows.length === 5 && setRows.every(t => /96$/.test(t)), 'set ilmu: 5 kumpulan x 96 mesej: ' + setRows.join(' | '));
   await page.selectOption('select[data-change="msgAge"]', 'warga');
   await page.waitForTimeout(100);
-  ok((await page.$$eval('.mlist li', e => e.length)) === 24, 'filter warga = 24');
+  ok((await page.$$eval('.mlist li', e => e.length)) === 40, 'filter Pencen = 40');
   await page.goto(URL + '#/mesej/D02');
   await page.waitForSelector('#dbody');
   await shot(page, '14-message-edit', true);
@@ -233,7 +239,7 @@ const st = page => page.evaluate(() => window.SEApp.state());
   await page.goto(URL + '#/baca/matang');
   await page.waitForSelector('.read-item');
   const nRead = await page.$$eval('.read-item', e => e.length);
-  ok(nRead === 70, 'read mode matang shows 70: ' + nRead);
+  ok(nRead === 86, 'read mode CZ shows 86: ' + nRead);
   ok((await page.textContent('#view')).includes('i-Emas'), 'B01 mentions i-Emas');
   await shot(page, '15b-read-mode');
   await page.selectOption('select[data-change="readGroup"]', 'tiada');
@@ -315,6 +321,63 @@ const st = page => page.evaluate(() => window.SEApp.state());
     await x.page.waitForSelector('text=Import selesai');
     const s2 = await st(x.page);
     ok(s2.customers.length >= 595, f + ' imported ' + s2.customers.length + ', dob ' + s2.customers.filter(c => c.dob).length);
+    ok(x.page.errors.length === 0, 'no errors: ' + x.page.errors.join(' | '));
+    await x.ctx.close();
+  }
+
+  console.log('12b. Import format Master Database (gelaran + tarikh bulan/hari)');
+  {
+    const x = await newPage(browser);
+    await x.page.goto(URL + '#/import');
+    await x.page.setInputFiles('input[type=file][data-change="importFile"]', T + 'master-database-rekaan.csv');
+    await x.page.waitForSelector('text=Padankan lajur', { timeout: 10000 });
+    const mp = await x.page.$$eval('select[data-change="impMap"]', els => Object.fromEntries(els.map(e => [e.dataset.key, e.value])));
+    ok(mp.phone === '2' && mp.name === '4' && mp.dob === '5' && mp.title === '15' && mp.nick === '16', 'SALUTATION → gelaran, NICKNAME → panggilan: ' + JSON.stringify(mp));
+    ok(await x.page.isVisible('text=ditulis bulan/hari/tahun'), 'nota format bulan/hari ditunjuk');
+    ok(mp.pg === '1' && await x.page.isVisible('text=tiada PG Code'), 'PG CODE dikesan & bakal pelanggan dikira');
+    const sem = (await x.page.textContent('section.card:has(h2:text("Semakan"))')).replace(/\s+/g, ' ');
+    ok(sem.includes('9 sah') && sem.includes('1 daripada yang dilangkau guna nombor pengganti') && sem.includes('2 orang berkongsi 1 nombor') && sem.includes('1 akaun Junior'),
+      'semakan: nombor pengganti, nombor dikongsi, Junior: ' + sem.slice(0, 160));
+    const prev = (await x.page.textContent('.prevlist')).replace(/\s+/g, ' ');
+    ok(prev.includes('Tuan Ali') && prev.includes('Cikgu Ros') && prev.includes('Danny'), 'pratonton guna gelaran: ' + prev.slice(0, 120));
+    await shot(x.page, '05b-import-master-database', true);
+    await x.page.click('button[data-act="importGo"]');
+    await x.page.waitForSelector('text=Import selesai');
+    const got = await x.page.evaluate(() => Object.fromEntries(SEApp.state().customers.map(c => [c.nick, [SECore.panggilan(c, SEApp.state().settings, new Date()), c.dob]])));
+    const want = { Ali: ['Tuan Ali', '1980-03-05'], Aina: ['Cik Aina', '2003-11-12'], Ros: ['Cikgu Ros', '1975-07-21'], Daniel: ['Danny', '1990-02-28'],
+      Hajar: ['Puan Hajar', '1985-10-09'], Kamal: ['Boss Kamal', '1995-12-30'], 'Wei Jie': ['Mr Wei Jie', '1970-06-01'], Farah: ['Farah', '2001-01-15'], Adam: ['Adam', '2016-04-10'] };
+    ok(JSON.stringify(got) === JSON.stringify(want), 'panggilan & tarikh lahir betul: ' + JSON.stringify(got));
+    const sesi = await x.page.evaluate(() => { const S = SEApp.state(); const b = SECore.ensureBatch(S, 'pagi', new Date()); return b.ids.map(id => S.customers.find(c => c.id === id).nick); });
+    ok(sesi.length === 8 && sesi.includes('Ali') && !sesi.includes('Adam'), 'sesi: Junior ditangguh, nombor bapa dihantar sekali: ' + sesi.join(','));
+    await x.page.evaluate(() => { const S = SEApp.state(); S.batches = {}; });
+    // Mod pilih sendiri (lalai): tiada sesi automatik; pemilik sediakan broadcast
+    await x.page.goto(URL + '#/hari-ini'); await x.page.waitForSelector('text=Sediakan broadcast');
+    ok(!(await x.page.isVisible('text=Mula sesi pagi')), 'mod pilih: tiada sesi automatik');
+    await x.page.click('text=Sediakan broadcast'); await x.page.waitForSelector('select[data-change="campMsg"]');
+    await x.page.selectOption('select[data-change="campMsg"]', 'ZP03');
+    await x.page.click('button[data-act="campStatus"][data-v="prospek"]');
+    const btn = (await x.page.textContent('button[data-act="campCreate"]')).trim();
+    ok(btn === 'Sediakan broadcast (2 orang)', 'penerima tiada PG Code: ' + btn);
+    await shot(x.page, '05c-broadcast-baru', true);
+    await x.page.click('button[data-act="campCreate"]'); await x.page.waitForSelector('.focus');
+    const who = (await x.page.textContent('.focus-name')).trim();
+    ok(who === 'Danny', 'broadcast mula dengan bakal pelanggan pertama: ' + who);
+    ok((await x.page.textContent('#fbubble')).includes('Akaun Emas GAP'), 'skrip ZP03 dipaparkan');
+    await x.page.click('.focus a[data-act="send"]'); await x.page.waitForTimeout(200);
+    ok((await x.page.textContent('.focus-name')).trim() === 'Farah', 'terus ke penerima seterusnya selepas Hantar');
+    const sentIds = await x.page.evaluate(() => SEApp.state().customers.filter(c => c.sent.ZP03 != null).map(c => c.nick));
+    ok(sentIds.join() === 'Daniel', 'rekod dihantar: ' + sentIds.join());
+    await x.page.goto(URL + '#/hari-ini'); await x.page.waitForSelector('text=Teruskan');
+    ok((await x.page.textContent('#view')).includes('1/2'), 'kemajuan broadcast di Hari Ini');
+    await x.page.goto(URL + '#/penyimpan'); await x.page.waitForSelector('.clist');
+    ok(await x.page.isVisible('button[data-f="junior"]'), 'penapis Junior ada');
+    await x.page.goto(URL + '#/mesej'); await x.page.waitForSelector('.scriptlist');
+    const scr = (await x.page.textContent('.scriptlist')).replace(/\s+/g, ' ');
+    ok(/MB30\s*16 skrip/.test(scr) && /0\/\d+ habis/.test(scr), 'kad skrip kategori: ' + scr.slice(0, 80));
+    await x.page.goto(URL + '#/penyimpan'); await x.page.waitForSelector('.clist');
+    await x.page.click('.clist a >> text=Siti Hajar');
+    await x.page.waitForSelector('input[data-cf="title"]');
+    ok(await x.page.inputValue('input[data-cf="title"]') === 'Puan', 'borang penyimpan tunjuk gelaran');
     ok(x.page.errors.length === 0, 'no errors: ' + x.page.errors.join(' | '));
     await x.ctx.close();
   }

@@ -65,7 +65,17 @@ t('groups', () => {
   assert.strictEqual(C.ageGroupOf(45), 'pertengahan'); assert.strictEqual(C.ageGroupOf(55), 'matang');
   assert.strictEqual(C.ageGroupOf(60), 'warga'); assert.strictEqual(C.ageGroupOf(null), null);
 });
-t('group labels', () => { assert.strictEqual(C.groupLabel('dewasa'), 'Dewasa (30–39)'); assert.strictEqual(C.groupLabel('warga'), 'Warga emas (60+)'); });
+t('group labels ikut Category Excel', () => {
+  assert.strictEqual(C.groupLabel('muda'), 'MB30 (18–25)'); assert.strictEqual(C.groupLabel('dewasa'), 'CX (26–35)'); assert.strictEqual(C.groupLabel('pertengahan'), 'CY (36–45)');
+  assert.strictEqual(C.groupLabel('matang'), 'CZ (46–55)'); assert.strictEqual(C.groupLabel('warga'), 'Pencen (56+)'); assert.strictEqual(C.groupLabel('junior'), 'Junior (bawah 18)');
+  assert.strictEqual(C.groupLabel('dewasa', [30, 40, 50, 60]), 'CX (30–39)');
+});
+t('Category Excel ↔ kumpulan', () => {
+  [[17, 'muda'], [18, 'muda'], [25, 'muda'], [26, 'dewasa'], [35, 'dewasa'], [36, 'pertengahan'], [45, 'pertengahan'], [46, 'matang'], [55, 'matang'], [56, 'warga']]
+    .forEach(([a, g]) => assert.strictEqual(C.ageGroupOf(a), g, String(a)));
+  assert.deepStrictEqual(['MB30', 'CX', 'CY', 'CZ', 'Pencen', 'Junior'].map(C.parseAgeGroup), ['muda', 'dewasa', 'pertengahan', 'matang', 'warga', 'muda']);
+  assert.strictEqual(C.viewGroup({ dob: '2015-01-01' }, {}, now), 'junior'); assert.strictEqual(C.viewGroup({ dob: '2003-01-01' }, {}, now), 'muda');
+});
 
 // ---------- birthday ----------
 t('isBirthday', () => { assert.ok(C.isBirthday('1990-10-28', now)); assert.ok(!C.isBirthday('1990-10-29', now)); });
@@ -118,7 +128,10 @@ t('age-specific appears', () => {
   const c = cust({ dob: '1990-01-01' }); // 36 -> dewasa
   const seq = []; let d = C.dayNum(now);
   for (let i = 0; i < 6; i++) { const m = C.nextMessage(c, msgs, S, d, now); seq.push(m.id); c.sent[m.id] = d++; }
-  assert.deepStrictEqual(seq, ['S00', 'E01', 'K01', 'D02', 'H03', 'E13']);
+  assert.deepStrictEqual(seq, ['S00', 'ZB01', 'ZB02', 'ZB03', 'ZB04', 'ZB05']); // skrip kategori Excel dahulu
+  for (let i = 0; i < 3; i++) { const m = C.nextMessage(c, msgs, S, d, now); seq.push(m.id); c.sent[m.id] = d++; }
+  assert.deepStrictEqual(seq.slice(6), ['ZB06', 'ZB07', 'ZB08']);
+  assert.strictEqual(C.nextMessage(c, msgs, S, d, now).id, 'ZB09'); // kemudian Set 2, baru pustaka asal
 });
 t('no age -> general only', () => {
   const c = cust({}); const all = new Set(); let d = 1000;
@@ -145,7 +158,7 @@ t('repeat after days', () => {
 function mkState(n) {
   const st = { settings: S, messages: msgs, customers: [], batches: {}, seq: 0 };
   for (let i = 0; i < n; i++) {
-    const c = C.newCustomer(st, { name: 'Pelanggan ' + i + ' bin Ali', phone: '6012' + String(1000000 + i).slice(-7) }, now);
+    const c = C.newCustomer(st, { name: 'Pelanggan ' + i + ' bin Ali', phone: '6012' + String(1000001 + i).slice(-7) }, now);
     st.customers.push(c);
   }
   return st;
@@ -327,9 +340,10 @@ t('all placeholders known', () => {
 t('bold markers balanced', () => {
   msgs.forEach(m => m.body.split('\n').forEach(line => assert.strictEqual((line.match(/\*/g) || []).length % 2, 0, m.id + ': ' + line)));
 });
-t('every group has 24 (8 per kategori)', () => {
+t('every group has 24 asal (8 per kategori) + 16 skrip Excel', () => {
   ['muda', 'dewasa', 'pertengahan', 'matang', 'warga'].forEach(g => {
-    const l = msgs.filter(m => m.ages.includes(g));
+    assert.strictEqual(msgs.filter(m => m.ages.includes(g) && /^Z/.test(m.id) && m.src).length, 16, g + ' skrip (Set 1 + Set 2)');
+    const l = msgs.filter(m => m.ages.includes(g) && !/^Z/.test(m.id));
     assert.strictEqual(l.length, 24, g);
     ['emas', 'kewangan', 'kehidupan'].forEach(cat => assert.strictEqual(l.filter(m => m.cat === cat).length, 8, g + ' ' + cat));
   });
@@ -346,7 +360,7 @@ t('tiada placeholder tak dikenali', () => {
 t('kategori tak bersebelahan sama terlalu kerap (muda)', () => {
   const c = cust({ dob: (yNow - 25) + '-01-01' }); const seq = msgs.filter(m => C.msgMatches(m, c, S, now));
   let run = 1, maxRun = 1; for (let i = 1; i < seq.length; i++) { run = seq[i].cat === seq[i - 1].cat ? run + 1 : 1; maxRun = Math.max(maxRun, run); }
-  assert.ok(maxRun <= 3, 'maxRun ' + maxRun); assert.strictEqual(seq.length, 70);
+  assert.ok(maxRun <= 3, 'maxRun ' + maxRun); assert.strictEqual(seq.length, 86);
 });
 
 // ---------- kumpulan umur v2 ----------
@@ -399,5 +413,188 @@ t('pembuka ikut umur', () => {
 t('pembuka lalai ikut umur wujud untuk semua kumpulan', () => {
   ['muda', 'dewasa', 'pertengahan', 'matang', 'warga'].forEach(g => assert.ok(CONTENT.openersByAge[g].length >= 3, g));
 });
+
+// ---------- gelaran (lajur Salutation) + nickname ----------
+{
+  const U = Object.assign({}, S, { honorific: 'umur' }), TP = Object.assign({}, S, { honorific: 'tuanpuan' });
+  const old = '1980-01-01', young = '2003-01-01';
+  t('titleKind', () => {
+    assert.strictEqual(C.titleKind('Tuan'), 'formal'); assert.strictEqual(C.titleKind('cik'), 'formal'); assert.strictEqual(C.titleKind('Mr.'), 'formal');
+    assert.strictEqual(C.titleKind('Cikgu'), 'tetap'); assert.strictEqual(C.titleKind('Boss'), 'tetap'); assert.strictEqual(C.titleKind("Dato'"), 'tetap');
+    assert.strictEqual(C.titleKind('Tuan Haji'), 'tetap'); assert.strictEqual(C.titleKind('Tan Sri'), 'tetap'); assert.strictEqual(C.titleKind('Puan Sri'), 'tetap');
+    assert.strictEqual(C.titleKind('Mama'), 'sendiri');
+    assert.strictEqual(C.titleKind('Danny'), ''); assert.strictEqual(C.titleKind('Tan'), ''); assert.strictEqual(C.titleKind(''), '');
+  });
+  t('gelaran + nickname, 30 ke atas', () => assert.strictEqual(C.panggilan({ name: 'Wan Ali bin Abu', nick: 'Daniel', title: 'Tuan', dob: old }, U, now), 'Tuan Daniel'));
+  t('gelaran dari Excel diikut walau bawah 30', () => {
+    assert.strictEqual(C.panggilan({ name: 'Wan Ali bin Abu', nick: 'Daniel', title: 'Tuan', dob: young }, U, now), 'Tuan Daniel');
+    assert.strictEqual(C.panggilan({ name: 'Nur Aina binti Abu', nick: 'Aina', title: 'Cik', dob: young }, U, now), 'Cik Aina');
+  });
+  t('tanpa gelaran: mod umur kekal (bawah 30 nama sahaja)', () => assert.strictEqual(C.panggilan({ name: 'Ali bin Abu', dob: young }, U, now), 'Ali'));
+  t('gelaran + nickname, bawah 30 mod tuan/puan', () => assert.strictEqual(C.panggilan({ name: 'Aina binti Abu', nick: 'Aina', title: 'Cik', dob: young }, TP, now), 'Cik Aina'));
+  t('gelaran + nickname, mod nama', () => assert.strictEqual(C.panggilan({ name: 'Aina binti Abu', nick: 'Aina', title: 'Puan', dob: old }, Object.assign({}, S, { honorific: 'nama' }), now), 'Aina'));
+  t('gelaran tetap dipakai walau muda', () => {
+    assert.strictEqual(C.panggilan({ name: 'Rosnah binti Abu', nick: 'Ros', title: 'Cikgu', dob: young }, U, now), 'Cikgu Ros');
+    assert.strictEqual(C.panggilan({ name: 'Ali bin Abu', nick: 'Ali', title: 'boss', dob: young }, U, now), 'Boss Ali');
+  });
+  t('gelaran sendiri tanpa nama', () => assert.strictEqual(C.panggilan({ name: 'Rosnah binti Abu', nick: 'Ros', title: 'Mama', dob: old }, U, now), 'Mama'));
+  t('nama kawan dalam lajur gelaran dipakai terus', () => assert.strictEqual(C.panggilan({ name: 'Daniel bin Abu', nick: 'Daniel', title: 'Danny', dob: old }, U, now), 'Danny'));
+  t('gelaran tanpa nickname guna nama dari IC', () => assert.strictEqual(C.panggilan({ name: 'Puteri Aisyah binti Omar', title: 'Puan', dob: old }, U, now), 'Puan Aisyah'));
+  t('panggilan penuh tidak digandakan gelaran', () => assert.strictEqual(C.panggilan({ name: 'Rosnah binti Abu', nick: 'Kak Ros', title: 'Puan', dob: old }, U, now), 'Kak Ros'));
+  t('tanpa gelaran: nickname kekal panggilan penuh', () => assert.strictEqual(C.panggilan({ name: 'Rosnah binti Abu', nick: 'Ros', dob: old }, U, now), 'Ros'));
+  t('guessField Master Database', () => {
+    assert.strictEqual(C.guessField('SALUTATION'), 'title'); assert.strictEqual(C.guessField('Gelaran'), 'title');
+    assert.strictEqual(C.guessField('NICKNAME'), 'nick'); assert.strictEqual(C.guessField('Panggilan'), 'nick');
+    assert.strictEqual(C.guessField('Sapaan'), 'salam');
+  });
+  t('detectMapping Master Database', () => {
+    const H = ['NO', 'PG CODE', 'PHONE', 'EMAIL', 'NAME', 'DOB', 'DOB (day)', 'DOB (month)', 'DOB (year)', 'AGE', 'Range Umur', 'Category', 'LOCALITY', 'BRANCH',
+      'DATE REGISTER', 'SALUTATION', 'NICKNAME', 'REMARK', 'AUTODEBIT SUBSCRIPTION', 'AMOUNT AUTODEBIT', 'DATE START AUTODEBIT', 'DATE END AUTODEBIT', 'LINK UPDATE LOCALITY', 'First Name', 'Last Name'];
+    const m = C.detectMapping([H]).map;
+    assert.deepStrictEqual([m.pg, m.phone, m.name, m.dob, m.age, m.title, m.nick, m.note], [1, 2, 4, 5, 9, 15, 16, 17]);
+    assert.strictEqual(m.salam, undefined); assert.strictEqual(m.tags, undefined);
+  });
+  t('dateOrder', () => {
+    assert.strictEqual(C.dateOrder(['3/15/1990', '4/5/1991', '']), 'mdy');
+    assert.strictEqual(C.dateOrder(['15/3/1990', '4/5/1991']), 'dmy');
+    assert.strictEqual(C.dateOrder(['4/5/1991', '1990-01-02']), 'dmy');
+  });
+  t('dob ambiguous ikut lajur bulan/hari', () => {
+    assert.strictEqual(C.parseDob('3/5/1990', 'mdy'), '1990-03-05');
+    assert.strictEqual(C.parseDob('3/5/1990'), '1990-05-03');
+    assert.strictEqual(C.parseDob('3/15/1990', 'mdy'), '1990-03-15');
+    assert.strictEqual(C.parseDob('15/3/1990', 'mdy'), '1990-03-15');
+  });
+  t('rowToCustomer gelaran + tarikh bulan/hari', () => {
+    const it = C.rowToCustomer(['Ali bin Abu', '0123456789', '3/5/1990', 'Tuan', 'Ali'], { name: 0, phone: 1, dob: 2, title: 3, nick: 4 }, { dateOrder: 'mdy' });
+    assert.strictEqual(it.dob, '1990-03-05'); assert.strictEqual(it.title, 'Tuan'); assert.strictEqual(it.nick, 'Ali');
+  });
+  t('mergeImport simpan & kemas kini gelaran', () => {
+    const st = { customers: [], seq: 0 };
+    C.mergeImport(st, [{ name: 'Ali bin Abu', phone: '60123456789', rawPhone: '0123456789', title: 'Tuan', nick: 'Ali', tags: [] }]);
+    assert.strictEqual(st.customers[0].title, 'Tuan');
+    C.mergeImport(st, [{ name: 'Ali bin Abu', phone: '60123456789', rawPhone: '0123456789', title: 'Boss', nick: 'Ali', tags: [] }]);
+    assert.strictEqual(st.customers.length, 1); assert.strictEqual(st.customers[0].title, 'Boss');
+  });
+}
+
+// ---------- satu nombor satu mesej, nombor pengganti, Junior ----------
+{
+  t('nombor pengganti tidak sah', () => {
+    ['601000000000', '60120000000', '60130000000'].forEach(p => { assert.ok(C.phoneDummy(p), p); assert.ok(!C.phoneOk(p), p); });
+    ['60123000000', '60120000001', '60123456789', '601123456789'].forEach(p => assert.ok(C.phoneOk(p), p));
+  });
+  t('isJunior', () => {
+    assert.ok(C.isJunior({ dob: '2015-01-01' }, now)); assert.ok(!C.isJunior({ dob: '2000-01-01' }, now)); assert.ok(!C.isJunior({ dob: '' }, now));
+  });
+  const SJ = Object.assign({}, S, { pauseJunior: true });
+  function fam() {
+    const st = { settings: SJ, messages: msgs, customers: [], batches: {}, seq: 0 };
+    [['Adam bin Ali', '60123450001', '2015-03-03'], ['Ali bin Abu', '60123450001', '1980-03-03'], ['Aminah binti Abu', '60123450001', '1982-03-03'],
+      ['Siti binti Omar', '60123450002', '1990-03-03'], ['Hana binti Omar', '60123450002', '1992-03-03'], ['Zack bin Omar', '60123450003', '2012-03-03']]
+      .forEach(([name, phone, dob]) => st.customers.push(C.newCustomer(st, { name, phone, dob }, now)));
+    return st;
+  }
+  t('Junior ditangguh, nombor dikongsi dihantar kepada ibu bapa', () => {
+    const st = fam(); const ctx = C.makeCtx(st, now);
+    assert.deepStrictEqual(st.customers.map(c => C.blockReason(c, ctx)), ['junior', null, 'pendua', null, 'pendua', 'junior']);
+    const b = C.ensureBatch(st, 'pagi', now);
+    assert.deepStrictEqual(b.ids, [st.customers[1].id, st.customers[3].id]);
+  });
+  t('Junior tidak ditangguh bila tetapan dimatikan', () => {
+    const st = fam(); st.settings = Object.assign({}, SJ, { pauseJunior: false });
+    const prim = C.primaryIds(st.customers, st.settings, now);
+    assert.ok(prim[st.customers[0].id] && !prim[st.customers[1].id] && prim[st.customers[5].id]);
+  });
+  t('STOP sesiapa = nombor itu tidak dihantar', () => {
+    const st = fam(); st.customers[4].optOut = true; const ctx = C.makeCtx(st, now);
+    assert.strictEqual(C.blockReason(st.customers[3], ctx), 'stop');
+    assert.ok(!C.ensureBatch(st, 'pagi', now).ids.includes(st.customers[3].id));
+  });
+  t('hari jadi ahli sekeluarga = nombor itu tiada broadcast hari ini', () => {
+    const st = fam(); st.customers[2].dob = '1982-10-28'; const ctx = C.makeCtx(st, now);
+    assert.strictEqual(C.blockReason(st.customers[1], ctx), 'harijadi');
+    st.customers[2].dob = '1982-03-03'; st.customers[0].dob = '2015-10-28'; // hari jadi Junior yang ditangguh tidak menghalang
+    assert.strictEqual(C.blockReason(st.customers[1], C.makeCtx(st, now)), null);
+  });
+}
+
+// ---------- skrip kategori: tanda perlu set baharu ----------
+t('scriptStats & scriptsLow', () => {
+  const st = { settings: Object.assign({}, S, { pauseJunior: true }), messages: msgs, customers: [], batches: {}, seq: 0 };
+  for (let i = 0; i < 10; i++) st.customers.push(C.newCustomer(st, { name: 'Ali ' + i + ' bin Abu', phone: '601234500' + (10 + i), dob: '2003-03-03' }, now));
+  const scr = msgs.filter(m => m.src && m.ages.includes('muda'));
+  assert.strictEqual(scr.length, 16);
+  let x = C.scriptStats(st, now);
+  assert.deepStrictEqual(x.muda, { people: 10, done: 0, scripts: 16 }); assert.deepStrictEqual(C.scriptsLow(x), []);
+  st.customers.slice(0, 8).forEach(c => scr.forEach((m, j) => { c.sent[m.id] = 100 + j; }));
+  x = C.scriptStats(st, now);
+  assert.strictEqual(x.muda.done, 8); assert.deepStrictEqual(C.scriptsLow(x), ['muda']);
+});
+t('Set 2 menyusul selepas Set 1', () => {
+  const c = cust({ dob: '2003-01-01' }); let d = C.dayNum(now); const seq = [];
+  for (let i = 0; i < 17; i++) { const m = C.nextMessage(c, msgs, S, d, now); seq.push(m.id); c.sent[m.id] = d++; }
+  assert.deepStrictEqual(seq.slice(1, 9), ['ZA01', 'ZA02', 'ZA03', 'ZA04', 'ZA05', 'ZA06', 'ZA07', 'ZA08']);
+  assert.deepStrictEqual(seq.slice(9, 17), ['ZA09', 'ZA10', 'ZA11', 'ZA12', 'ZA13', 'ZA14', 'ZA15', 'ZA16']);
+});
+
+// ---------- PG Code (bakal pelanggan) & broadcast pilihan ----------
+{
+  t('PG Code: import & bakal pelanggan', () => {
+    assert.strictEqual(C.guessField('PG CODE'), 'pg'); assert.strictEqual(C.guessField('Kod PG'), 'pg');
+    const a = C.rowToCustomer(['Ali bin Abu', '0123456789', 'pg0123'], { name: 0, phone: 1, pg: 2 });
+    const b = C.rowToCustomer(['Ali bin Abu', '0123456789', ''], { name: 0, phone: 1, pg: 2 });
+    const c = C.rowToCustomer(['Ali bin Abu', '0123456789'], { name: 0, phone: 1 });
+    assert.deepStrictEqual([a.pg, b.pg, c.pg], ['PG0123', '', null]);
+    assert.ok(!C.isProspect(a) && C.isProspect(b) && !C.isProspect(c));
+  });
+  t('PG Code: import semula tidak buang PG Code, bakal pelanggan boleh jadi penyimpan', () => {
+    const st = { customers: [], seq: 0 };
+    C.mergeImport(st, [{ name: 'Ali bin Abu', phone: '60123456789', rawPhone: '0123456789', pg: '', tags: [] }]);
+    assert.strictEqual(st.customers[0].pg, '');
+    C.mergeImport(st, [{ name: 'Ali bin Abu', phone: '60123456789', rawPhone: '0123456789', pg: 'PG1', tags: [] }]);
+    assert.strictEqual(st.customers[0].pg, 'PG1');
+    C.mergeImport(st, [{ name: 'Ali bin Abu', phone: '60123456789', rawPhone: '0123456789', pg: '', tags: [] }]);
+    assert.strictEqual(st.customers[0].pg, 'PG1');
+  });
+  t('skrip bakal pelanggan hanya untuk tiada PG Code; S00 hanya untuk penyimpan', () => {
+    const zp = msgs.filter(m => m.aud === 'prospek');
+    assert.strictEqual(zp.length, 10);
+    const pros = cust({ pg: '', dob: '1990-01-01' }), saver = cust({ pg: 'PG1', dob: '1990-01-01' }), unk = cust({ dob: '1990-01-01' });
+    assert.ok(C.msgMatches(zp[0], pros, S, now) && !C.msgMatches(zp[0], saver, S, now) && !C.msgMatches(zp[0], unk, S, now));
+    const s00 = msgs.find(m => m.id === 'S00');
+    assert.ok(!C.msgMatches(s00, pros, S, now) && C.msgMatches(s00, saver, S, now) && C.msgMatches(s00, unk, S, now));
+    assert.strictEqual(C.nextMessage(pros, msgs, S, C.dayNum(now), now).id, 'ZP01');
+  });
+  function camp() {
+    const st = { settings: Object.assign({}, S, { pauseJunior: true }), messages: msgs, customers: [], batches: {}, seq: 0 };
+    [['Ali bin Abu', '60123450001', '1990-03-03', 'PG1'], ['Aina binti Abu', '60123450002', '2003-03-03', ''], ['Adam bin Ali', '60123450001', '2015-03-03', ''],
+      ['Siti binti Omar', '60123450003', '1980-03-03', ''], ['Hana binti Omar', '60123450003', '1982-03-03', ''], ['Lim Wei', '60123450004', '1970-03-03', '']]
+      .forEach(([name, phone, dob, pg]) => st.customers.push(C.newCustomer(st, { name, phone, dob, pg }, now)));
+    st.customers[5].tags = ['Bukan Islam'];
+    return st;
+  }
+  t('broadcast pilihan: penapis status, kategori & sebab', () => {
+    const st = camp(), zp1 = msgs.find(m => m.id === 'ZP01'), e01 = msgs.find(m => m.id === 'E01');
+    let p = C.campaignPreview(st, zp1, { status: 'prospek' }, now);
+    assert.deepStrictEqual(p.ids, [st.customers[1].id, st.customers[3].id, st.customers[5].id]);
+    assert.strictEqual(p.why.junior, 1); assert.strictEqual(p.why.pendua, 1);
+    p = C.campaignPreview(st, zp1, {}, now); assert.strictEqual(p.why.sasaran, 1); // Ali ada PG Code
+    p = C.campaignPreview(st, e01, { groups: ['muda'] }, now); assert.deepStrictEqual(p.ids, [st.customers[1].id]);
+    st.customers[1].sent.E01 = 1; p = C.campaignPreview(st, e01, { groups: ['muda'] }, now); assert.strictEqual(p.why.diterima, 1);
+    p = C.campaignPreview(st, e01, { groups: ['muda'], skipReceived: false }, now); assert.strictEqual(p.ids.length, 1);
+    const isl = msgs.find(m => m.islamic && !m.aud);
+    p = C.campaignPreview(st, isl, {}, now); assert.strictEqual(p.why.islamik, 1); // Lim (Bukan Islam)
+  });
+  t('broadcast pilihan: senarai, baki & had harian', () => {
+    const st = camp(), zp1 = msgs.find(m => m.id === 'ZP01');
+    const k = C.newCampaign(st, zp1, { status: 'prospek' }, now);
+    assert.strictEqual(st.campaigns[0], k); assert.strictEqual(k.ids.length, 3); assert.strictEqual(C.campaignPending(st, k).length, 3);
+    k.done[k.ids[0]] = { m: 'ZP01', t: now.getTime() }; k.skip[k.ids[1]] = 1;
+    assert.deepStrictEqual(C.campaignPending(st, k), [k.ids[2]]);
+    assert.strictEqual(C.sentToday(st, now), 1);
+    st.customers.find(c => c.id === k.ids[2]).optOut = true; assert.strictEqual(C.campaignPending(st, k).length, 0);
+  });
+}
 
 console.log(`${pass} tests passed`);

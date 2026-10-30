@@ -3,14 +3,14 @@
   'use strict';
   var C = window.SECore, X = window.SEXlsx, CONTENT = window.SE_CONTENT;
   var KEY = 'servisEmas.v1';
-  var VERSION = '1.1.0';
+  var VERSION = '1.2.0';
   var esc = C.escapeHtml;
   var S = null;
   var idx = null;
   var ui = {
     route: ['hari-ini'], q: '', cf: 'semua', climit: 150,
     msgCat: 'semua', msgAge: 'semua', draft: null, draftFor: null, previewAs: '', previewNM: false,
-    imp: null, bdayOff: {}, justDone: false, awaiting: null, pendingToast: '', renderDay: null
+    imp: null, bdayOff: {}, justDone: false, awaiting: null, pendingToast: '', renderDay: null, camp: null
   };
 
   /* ================= Ikon ================= */
@@ -56,14 +56,14 @@
         { id: 'malam', name: 'Malam', time: '20:30', size: 30, on: false }
       ],
       days: [1, 1, 1, 1, 1, 1, 1], minGapDays: 7, repeatAfterDays: 180,
-      ageBounds: [30, 40, 50, 60], linkMode: 'auto', autoMark: true, lastBackup: 0
+      ageBounds: C.DEFAULT_BOUNDS.slice(), pauseJunior: true, mode: 'pilih', dailyLimit: 60, linkMode: 'auto', autoMark: true, lastBackup: 0
     };
   }
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
   function fresh() {
     return {
       app: 'servis-emas', v: 1, created: Date.now(), settings: defaults(), customers: [],
-      messages: clone(CONTENT.messages), bdays: clone(CONTENT.birthdays), batches: {},
+      messages: clone(CONTENT.messages), bdays: clone(CONTENT.birthdays), batches: {}, campaigns: [],
       contentVersion: CONTENT.version, removed: [], seq: 0
     };
   }
@@ -73,10 +73,13 @@
     if (!Array.isArray(S.settings.slots) || !S.settings.slots.length) S.settings.slots = d.slots;
     if (!Array.isArray(S.settings.days) || S.settings.days.length !== 7) S.settings.days = d.days;
     if (!Array.isArray(S.settings.ageBounds) || S.settings.ageBounds.length !== 4) S.settings.ageBounds = d.ageBounds;
+    // v1.2: had umur ikut Category Excel pemilik (26/36/46/56) — hanya jika masih guna had lalai lama
+    if (!S.settings.boundsV2) { if (String(S.settings.ageBounds) === String(C.OLD_BOUNDS)) S.settings.ageBounds = C.DEFAULT_BOUNDS.slice(); S.settings.boundsV2 = true; }
     if (!Array.isArray(S.settings.openers)) S.settings.openers = d.openers;
     if (!S.settings.openersByAge || typeof S.settings.openersByAge !== 'object') S.settings.openersByAge = d.openersByAge;
     ['customers', 'messages', 'bdays', 'removed'].forEach(function (k) { if (!Array.isArray(S[k])) S[k] = []; });
     S.batches = S.batches || {};
+    S.campaigns = Array.isArray(S.campaigns) ? S.campaigns : [];
     if ((S.contentVersion || 0) < CONTENT.version) upgradeContent(S.contentVersion || 0);
     S.customers.forEach(function (c) { c.sent = c.sent || {}; c.tags = c.tags || []; c.bday = c.bday || {}; });
     C.pruneBatches(S, new Date());
@@ -187,8 +190,9 @@
   }
   function go(path) { location.hash = '#/' + path; }
   function groupChip(c) {
-    var g = C.groupOf(c, S.settings, now());
-    return '<span class="chip" data-g="' + (g || 'none') + '">' + esc(g ? C.groupLabel(g, S.settings.ageBounds, false) : 'Tiada umur') + '</span>';
+    var g = C.viewGroup(c, S.settings, now());
+    return '<span class="chip" data-g="' + (g || 'none') + '">' + esc(g ? C.groupLabel(g, S.settings.ageBounds, false) : 'Tiada umur') + '</span>' +
+      (C.isProspect(c) ? '<span class="chip prospek">Tiada PG Code</span>' : '');
   }
   function initials(c) {
     var s = C.nameInfo(c.name).short || c.name || '?';
@@ -217,19 +221,24 @@
   }
   function broadcastText(c, m) { return C.composeBroadcast(c, m, S.settings, now()); }
   function nextMsg(c) { return C.nextMessage(c, S.messages, S.settings, today(), now()); }
+  // Broadcast pilihan: slotId 'k:<id>' merujuk senarai broadcast; selain itu sesi biasa (pagi/petang)
+  function campById(id) { return (S.campaigns || []).filter(function (k) { return k.id === id; })[0] || null; }
+  function campOf(slotId) { return slotId && String(slotId).indexOf('k:') === 0 ? campById(String(slotId).slice(2)) : null; }
+  function msgFor(c, slotId) { var k = campOf(slotId); return k ? msgById(k.msg) : nextMsg(c); }
 
   /* ================= Tindakan hantar ================= */
   function markSent(c, m, slotId) {
     var d = today();
     var rec = { m: m.id, t: Date.now(), prevLast: c.last == null ? null : c.last, prevSent: c.sent[m.id] == null ? null : c.sent[m.id] };
-    var b = slotId ? C.ensureBatch(S, slotId, now()) : null; // ambil kumpulan SEBELUM tarikh hantar dikemas kini
+    var k = campOf(slotId);
+    var b = k || (slotId ? C.ensureBatch(S, slotId, now()) : null); // ambil kumpulan SEBELUM tarikh hantar dikemas kini
     c.sent[m.id] = d; c.last = d;
     if (b) { b.done[c.id] = rec; delete b.skip[c.id]; }
     save();
     return rec;
   }
   function undoSent(c, slotId) {
-    var b = (S.batches[C.isoDay(now())] || {})[slotId];
+    var b = campOf(slotId) || (S.batches[C.isoDay(now())] || {})[slotId];
     if (!b || !b.done[c.id]) return;
     var rec = b.done[c.id];
     if (rec.prevSent == null) delete c.sent[rec.m]; else c.sent[rec.m] = rec.prevSent;
@@ -252,6 +261,7 @@
     try {
       switch (r[0]) {
         case 'sesi': out = viewSession(r[1]); break;
+        case 'broadcast': out = r[1] === 'baru' ? viewCampaignNew() : viewCampaign(r[1]); break;
         case 'penyimpan': out = r[1] ? viewCustomer(r[1]) : viewCustomers(); break;
         case 'import': out = viewImport(); break;
         case 'mesej': out = r[1] ? viewMessageEdit(r[1]) : viewMessages(); break;
@@ -276,7 +286,7 @@
     if (ui.pendingToast) { var t = ui.pendingToast; ui.pendingToast = ''; toast(t); }
   }
   function renderTabs(r0) {
-    var map = { 'hari-ini': 'hari-ini', sesi: 'hari-ini', penyimpan: 'penyimpan', 'import': 'penyimpan', mesej: 'mesej', ucapan: 'mesej', pembuka: 'mesej', baca: 'mesej', tetapan: 'tetapan', panduan: 'tetapan' };
+    var map = { 'hari-ini': 'hari-ini', sesi: 'hari-ini', broadcast: 'hari-ini', penyimpan: 'penyimpan', 'import': 'penyimpan', mesej: 'mesej', ucapan: 'mesej', pembuka: 'mesej', baca: 'mesej', tetapan: 'tetapan', panduan: 'tetapan' };
     var cur = map[r0] || 'hari-ini';
     var items = [['hari-ini', 'Hari Ini', 'calendar'], ['penyimpan', 'Penyimpan', 'users'], ['mesej', 'Mesej', 'chat'], ['tetapan', 'Tetapan', 'sliders']];
     $('#tabs').innerHTML = '<div class="tabs-in">' + items.map(function (t) {
@@ -301,9 +311,11 @@
     else if (!s.myName) h += '<div class="banner"><p>Isi nama anda supaya setiap mesej ada tandatangan.</p><a class="btn sm" href="#/tetapan">Isi nama</a></div>';
     if (S.customers.length) {
       h += birthdayCard(n);
-      h += sessionsBlock(n);
+      h += s.mode === 'auto' ? sessionsBlock(n) : campaignsBlock(n);
       h += overviewCard(n);
       if (needsBackup()) h += '<div class="banner"><p>' + backupMsg() + '</p><button class="btn sm" data-act="backup">Backup</button></div>';
+      var low = C.scriptsLow(C.scriptStats(S, n));
+      if (low.length) h += '<div class="banner"><p><b>Skrip ' + esc(low.map(function (g) { return C.groupLabel(g, s.ageBounds, false); }).join(', ')) + ' hampir habis.</b> Lebih ' + Math.round(C.SCRIPT_LOW * 100) + '% penyimpan dah terima semua skrip kategori ini. Minta set skrip baharu.</p><a class="btn sm" href="#/mesej">Lihat</a></div>';
     }
     return { hero: true, top: top, html: h };
   }
@@ -339,10 +351,10 @@
 
   function birthdayCard(n) {
     var year = n.getFullYear();
-    var todayList = S.customers.filter(function (c) { return c.dob && C.isBirthday(c.dob, n); });
+    var todayList = S.customers.filter(function (c) { return c.dob && C.isBirthday(c.dob, n) && !C.paused(c, S.settings, n); });
     var up = [];
     S.customers.forEach(function (c) {
-      if (!c.dob) return;
+      if (!c.dob || C.paused(c, S.settings, n)) return;
       var d = C.daysToBirthday(c.dob, n);
       if (d != null && d >= 1 && d <= 7) up.push({ c: c, d: d });
     });
@@ -353,7 +365,7 @@
       h += '<ul class="bday-list">' + todayList.map(function (c) {
         var age = C.ageOf(c, n);
         var wished = c.bday && c.bday[year];
-        return '<li><span class="avatar" data-g="' + (C.groupOf(c, S.settings, n) || 'none') + '">' + initials(c) + '</span>' +
+        return '<li><span class="avatar" data-g="' + (C.viewGroup(c, S.settings, n) || 'none') + '">' + initials(c) + '</span>' +
           '<div class="who"><b>' + esc(pang(c)) + '</b><span>' + (age != null ? 'Genap ' + age + ' tahun' : esc(C.displayName(c.name))) + (c.optOut ? ' (minta STOP)' : '') + '</span></div>' +
           (wished ? '<span class="wished">' + icon('check') + C.fmtClock(wished) + '</span><button class="icon-btn" data-act="bday" data-cid="' + c.id + '" aria-label="Hantar lagi">' + icon('more') + '</button>'
             : '<button class="btn send sm" data-act="bday" data-cid="' + c.id + '">' + icon('cake') + 'Ucap</button>') + '</li>';
@@ -425,16 +437,18 @@
     return '<div class="ingot" role="img" aria-label="' + label + '"><div class="notches">' + h + '</div></div>';
   }
   function overviewCard(n) {
-    var s = S.settings, counts = { muda: 0, dewasa: 0, pertengahan: 0, matang: 0, warga: 0, none: 0 }, stop = 0, active = 0;
-    var prim = C.primaryIds(S.customers);
+    var s = S.settings, counts = { junior: 0, muda: 0, dewasa: 0, pertengahan: 0, matang: 0, warga: 0, none: 0 }, stop = 0, active = 0, junior = 0, shared = 0;
+    var prim = C.primaryIds(S.customers, s, n), perPhone = {}, prospects = S.customers.filter(C.isProspect).length;
     S.customers.forEach(function (c) {
-      counts[C.groupOf(c, s, n) || 'none']++;
-      if (c.optOut) stop++; else if (prim[c.id] && C.phoneOk(c.phone)) active++;
+      counts[C.viewGroup(c, s, n) || 'none']++;
+      if (c.phone) perPhone[c.phone] = (perPhone[c.phone] || 0) + 1;
+      if (c.optOut) stop++; else if (C.paused(c, s, n)) junior++; else if (prim[c.id] && C.phoneOk(c.phone)) active++;
     });
+    Object.keys(perPhone).forEach(function (p) { if (perPhone[p] > 1) shared += perPhone[p]; });
     var total = S.customers.length;
     var perDay = s.slots.filter(function (x) { return x.on; }).reduce(function (a, x) { return a + (+x.size || 0); }, 0) * (s.days.filter(Boolean).length / 7);
     var cycle = perDay > 0 ? Math.max(s.minGapDays, Math.ceil(active / perDay)) : null;
-    var order = ['muda', 'dewasa', 'pertengahan', 'matang', 'warga'];
+    var order = ['junior', 'muda', 'dewasa', 'pertengahan', 'matang', 'warga'];
     var dist = order.concat(['none']).map(function (g) { return counts[g] ? '<span class="' + g + '" style="width:' + (counts[g] / total * 100).toFixed(2) + '%"></span>' : ''; }).join('');
     var legend = order.map(function (g) {
       return '<li><span class="sw" style="background:var(--g-' + g + ')"></span><span class="lg-l">' + esc(C.groupLabel(g, s.ageBounds, false)) + '<small>' + esc(C.groupRange(g, s.ageBounds)) + ' tahun</small></span><b>' + counts[g] + '</b></li>';
@@ -443,7 +457,128 @@
       '<div class="stat-line"><span class="big-num">' + total + '</span><span class="muted">penyimpan' + (cycle ? '. Setiap seorang terima tips lebih kurang setiap ' + cycle + ' hari.' : '.') + '</span></div>' +
       '<div class="dist" aria-hidden="true">' + dist + '</div><ul class="legend">' + legend + '</ul>' +
       (counts.none ? '<p class="small muted" style="margin-top:12px">' + counts.none + ' orang tiada tarikh lahir, jadi mereka terima mesej umum sahaja. <a class="linkish" href="#/penyimpan" data-act="setFilter" data-f="tiada">Lengkapkan</a></p>' : '') +
-      (stop ? '<p class="small muted">' + stop + ' orang minta berhenti (STOP) dan tidak dihantar mesej.</p>' : '') + '</section>';
+      (stop ? '<p class="small muted">' + stop + ' orang minta berhenti (STOP) dan tidak dihantar mesej.</p>' : '') +
+      (prospects ? '<p class="small muted" style="margin-top:10px">' + prospects + ' bakal pelanggan (tiada PG Code). <a class="linkish" href="#/penyimpan" data-act="setFilter" data-f="prospek">Lihat</a></p>' : '') +
+      (junior ? '<p class="small muted" style="margin-top:10px">' + junior + ' akaun Junior (bawah ' + C.JUNIOR_AGE + ' tahun) ditangguh. <a class="linkish" href="#/tetapan">Ubah</a></p>' : '') +
+      (shared ? '<p class="small muted" style="margin-top:10px">' + shared + ' orang berkongsi nombor dengan ahli keluarga. Setiap nombor terima satu mesej sahaja.</p>' : '') + '</section>';
+  }
+
+  /* ================= BROADCAST PILIHAN ================= */
+  // Pemilik pilih skrip & penerima dahulu; app hanya bawa ke penerima seterusnya selepas setiap Hantar.
+  function campStats(k) {
+    var done = Object.keys(k.done).length, pending = C.campaignPending(S, k).length;
+    return { done: done, pending: pending, total: done + pending };
+  }
+  function filterSummary(f) {
+    var parts = [];
+    parts.push(f.status === 'prospek' ? 'Tiada PG Code' : f.status === 'penyimpan' ? 'Ada PG Code' : 'Semua status');
+    parts.push(f.groups && f.groups.length ? f.groups.map(function (g) { return g === 'tiada' ? 'Tiada umur' : C.groupLabel(g, S.settings.ageBounds, false); }).join(', ') : 'Semua kategori');
+    if (f.tags && f.tags.length) parts.push(f.tags.join(', '));
+    return parts.join(' · ');
+  }
+  function campaignsBlock(n) {
+    var list = S.campaigns || [], sent = C.sentToday(S, n), lim = +S.settings.dailyLimit || 0;
+    var active = list.filter(function (k) { return campStats(k).pending > 0; });
+    var finished = list.filter(function (k) { return campStats(k).pending === 0; }).slice(0, 3);
+    var h = '<section class="card"><div class="card-head"><h2>Broadcast</h2><span class="time">' + sent + (lim ? '/' + lim : '') + ' hari ini</span></div>' +
+      '<p class="muted small" style="margin:0 0 12px">Anda pilih skrip dan penerima. App bawa anda dari seorang ke seorang; WhatsApp buka dengan mesej siap ditulis.</p>' +
+      '<a class="btn primary block" href="#/broadcast/baru">' + icon('plus') + 'Sediakan broadcast</a></section>';
+    h += active.map(function (k) {
+      var st = campStats(k);
+      return '<section class="card session"><div class="card-head"><h2>' + esc(k.title) + '</h2><span class="time">' + st.done + '/' + st.total + '</span></div>' +
+        ingot(st.done, st.total, false) + '<p class="meta">' + esc(filterSummary(k.filter || {})) + '. Baki ' + st.pending + ' orang.</p>' +
+        '<a class="btn block" href="#/broadcast/' + k.id + '">' + (st.done ? 'Teruskan' : 'Mula hantar') + '</a></section>';
+    }).join('');
+    if (finished.length) h += '<h3 class="sub-h">Broadcast selesai</h3><ul class="dlist">' + finished.map(function (k) {
+      return '<li><span class="tick">' + icon('check') + '</span><div class="who"><b><a href="#/broadcast/' + k.id + '">' + esc(k.title) + '</a></b><span>' + campStats(k).done + ' dihantar</span></div></li>';
+    }).join('') + '</ul>';
+    return h;
+  }
+  function campDraft() {
+    if (!ui.camp) ui.camp = { msg: '', groups: [], status: 'semua', tags: [], skipReceived: true };
+    return ui.camp;
+  }
+  function msgOptions(cur) {
+    var groups = [
+      ['Skrip bakal pelanggan (tiada PG Code)', function (m) { return m.aud === 'prospek'; }],
+      ['Skrip ikut kategori (MB30, CX, CY, CZ, Pencen)', function (m) { return m.src && m.aud !== 'prospek'; }],
+      ['Mesej lain dalam pustaka', function (m) { return !m.src && m.aud !== 'prospek'; }]
+    ];
+    return '<option value="">Pilih skrip…</option>' + groups.map(function (g) {
+      var list = S.messages.filter(function (m) { return m.on !== false && g[1](m); });
+      return list.length ? '<optgroup label="' + esc(g[0]) + '">' + list.map(function (m) {
+        var who = m.ages && m.ages.length ? ' (' + m.ages.map(function (x) { return C.groupLabel(x, S.settings.ageBounds, false); }).join(', ') + ')' : '';
+        return '<option value="' + esc(m.id) + '"' + (cur === m.id ? ' selected' : '') + '>' + esc(m.id + ' · ' + m.title + who) + '</option>';
+      }).join('') + '</optgroup>' : '';
+    }).join('');
+  }
+  function viewCampaignNew() {
+    var d = campDraft(), n = now(), s = S.settings, m = d.msg ? msgById(d.msg) : null;
+    var top = topBar('Sediakan broadcast', { back: '#/hari-ini' });
+    var statusT = [['semua', 'Semua'], ['penyimpan', 'Ada PG Code'], ['prospek', 'Tiada PG Code']].map(function (x) {
+      return '<button type="button" data-act="campStatus" data-v="' + x[0] + '" aria-pressed="' + (d.status === x[0]) + '">' + x[1] + '</button>';
+    }).join('');
+    var gl = ['junior'].concat(C.AGE_GROUPS.map(function (g) { return g.id; })).concat(['tiada']);
+    var groupT = '<button type="button" data-act="campGroup" data-g="" aria-pressed="' + (!d.groups.length) + '">Semua</button>' + gl.map(function (g) {
+      return '<button type="button" data-act="campGroup" data-g="' + g + '" aria-pressed="' + (d.groups.indexOf(g) >= 0) + '">' + esc(g === 'tiada' ? 'Tiada umur' : C.groupLabel(g, s.ageBounds, false)) + '</button>';
+    }).join('');
+    var allTags = {};
+    S.customers.forEach(function (c) { (c.tags || []).forEach(function (t) { allTags[t] = 1; }); });
+    var tagT = Object.keys(allTags).sort().slice(0, 30).map(function (t) {
+      return '<button type="button" data-act="campTag" data-t="' + esc(t) + '" aria-pressed="' + (d.tags.indexOf(t) >= 0) + '">' + esc(t) + '</button>';
+    }).join('');
+    var p = C.campaignPreview(S, m, d, n), w = p.why;
+    var why = [[w.stop, 'minta STOP'], [w.telefon, 'tiada nombor sah'], [w.junior, 'akaun Junior (ditangguh)'], [w.islamik, 'kumpulan bukan Islam (skrip Islamik)'],
+      [w.sasaran, m && m.aud === 'prospek' ? 'dah ada PG Code (skrip khas bakal pelanggan)' : 'tiada PG Code (skrip khas penyimpan)'], [w.diterima, 'dah terima skrip ini'], [w.pendua, 'berkongsi nombor (dihantar sekali)']]
+      .filter(function (x) { return x[0]; }).map(function (x) { return '<li>' + x[0] + ' ' + esc(x[1]) + '</li>'; }).join('');
+    var first = p.ids.slice(0, 3).map(byId).filter(Boolean);
+    var sample = first[0] || sampleCustomer('dewasa');
+    var h = '<section class="card"><h2 style="margin-bottom:12px">1. Pilih skrip</h2>' +
+      '<label class="field"><span class="sr">Skrip</span><select data-change="campMsg">' + msgOptions(d.msg) + '</select></label>' +
+      (m ? '<div class="bubble">' + C.waToHtml(broadcastText(sample, m)) + '</div><p class="small muted" style="margin-top:6px">Contoh untuk ' + esc(pang(sample)) + '. Nama, gelaran dan sapaan ikut setiap penerima.</p>' : '<p class="muted small">Pilih skrip untuk lihat pratonton.</p>') +
+      '</section>' +
+      '<section class="card"><h2 style="margin-bottom:12px">2. Pilih penerima</h2>' +
+      '<fieldset class="field"><legend>Status pembelian</legend><div class="toggles">' + statusT + '</div></fieldset>' +
+      '<fieldset class="field"><legend>Kategori umur</legend><div class="toggles">' + groupT + '</div></fieldset>' +
+      (tagT ? '<fieldset class="field"><legend>Kumpulan (pilihan)</legend><div class="toggles">' + tagT + '</div></fieldset>' : '') +
+      '<label class="switch"><input type="checkbox" data-change="campSkipRecv"' + (d.skipReceived !== false ? ' checked' : '') + '><span class="sw-text"><b>Langkau yang dah terima skrip ini</b><small>Supaya tiada siapa terima skrip yang sama dua kali.</small></span></label></section>' +
+      '<section class="card"><h2>3. Semakan</h2><p style="margin-top:8px"><span class="big-num">' + p.ids.length + '</span> <span class="muted">penerima' + (first.length ? ': ' + esc(first.map(pang).join(', ')) + (p.ids.length > 3 ? ' dan lain-lain' : '') : '') + '</span></p>' +
+      (why ? '<p class="small muted" style="margin:10px 0 4px">Tidak dimasukkan:</p><ul class="problems">' + why + '</ul>' : '') +
+      (S.settings.dailyLimit ? '<p class="small muted" style="margin-top:10px">Cadangan had: ' + S.settings.dailyLimit + ' mesej sehari, supaya nombor anda tidak disekat. Broadcast besar boleh disambung esok.</p>' : '') +
+      '<div class="btn-row" style="margin-top:14px"><button class="btn primary" data-act="campCreate"' + (m && p.ids.length ? '' : ' disabled') + '>Sediakan broadcast (' + p.ids.length + ' orang)</button></div></section>';
+    return { top: top, html: h };
+  }
+  function viewCampaign(id) {
+    var k = campById(id), n = now();
+    if (!k) return { top: topBar('Broadcast', { back: '#/hari-ini' }), html: '<section class="card"><h2>Broadcast tidak dijumpai</h2><a class="btn" href="#/hari-ini">Ke Hari Ini</a></section>' };
+    var slotId = 'k:' + k.id, m = msgById(k.msg);
+    var pending = C.campaignPending(S, k).map(byId).filter(Boolean);
+    var done = Object.keys(k.done).map(byId).filter(Boolean).sort(function (x, y) { return k.done[y.id].t - k.done[x.id].t; });
+    var total = done.length + pending.length, sent = C.sentToday(S, n), lim = +S.settings.dailyLimit || 0;
+    var top = topBar('Broadcast', { back: '#/hari-ini', right: '<span class="tb-count">' + done.length + '/' + total + '&nbsp;</span>' });
+    var h = '<div class="session-head">' + ingot(done.length, total, ui.justDone) + '<p>' + esc(k.title) + ' · ' + esc(filterSummary(k.filter || {})) + '</p></div>';
+    ui.justDone = false;
+    if (!m) h += '<section class="card"><h2>Skrip tidak dijumpai</h2><p class="muted">Skrip untuk broadcast ini telah dipadam.</p></section>';
+    else if (pending.length) {
+      if (lim && sent >= lim) h += '<div class="banner warn"><p>Hari ini dah ' + sent + ' mesej (cadangan had ' + lim + '). Elok sambung esok supaya nombor anda tidak disekat.</p></div>';
+      h += focusCard(pending[0], slotId);
+      if (pending.length > 1) {
+        h += '<h3 class="sub-h">Giliran seterusnya (' + (pending.length - 1) + ')</h3><ol class="qlist">' + pending.slice(1, 31).map(function (c, i) {
+          return '<li><span class="qnum">' + (done.length + i + 2) + '</span><div class="who"><b>' + esc(pang(c)) + '</b><span>' + esc(C.fmtPhone(c.phone)) + '</span></div>' + sendLink(c, slotId, true) + '</li>';
+        }).join('') + '</ol>' + (pending.length > 31 ? '<p class="hint">dan ' + (pending.length - 31) + ' orang lagi.</p>' : '');
+      }
+    } else {
+      h += '<section class="card finish"><h2>Broadcast selesai</h2><p class="muted">' + done.length + ' mesej dihantar.</p><a class="btn primary" href="#/broadcast/baru">Sediakan broadcast lain</a></section>';
+    }
+    if (done.length) {
+      h += '<h3 class="sub-h">Dah dihantar</h3><ul class="dlist">' + done.slice(0, 30).map(function (c) {
+        var rec = k.done[c.id];
+        return '<li><span class="tick">' + icon('check') + '</span><div class="who"><b>' + esc(pang(c)) + '</b><span>' + esc(C.fmtShort(new Date(rec.t))) + ' ' + C.fmtClock(rec.t) + '</span></div>' +
+          '<button class="linkish" data-act="undo" data-cid="' + c.id + '" data-slot="' + slotId + '">Batal</button></li>';
+      }).join('') + '</ul>';
+    }
+    h += '<p style="text-align:center;margin:18px 0 8px"><button class="btn danger sm" data-act="campDelete" data-id="' + k.id + '">' + icon('trash') + 'Padam broadcast ini</button></p>';
+    return { top: top, html: h };
   }
 
   /* ================= SESI ================= */
@@ -490,12 +625,12 @@
     return { top: top, html: h };
   }
   function sendLink(c, slotId, small) {
-    var m = nextMsg(c);
+    var m = msgFor(c, slotId);
     var href = m ? C.waLink(c.phone, broadcastText(c, m), linkMode()) : '#';
     return '<a class="btn send' + (small ? ' sm' : ' big') + '" href="' + esc(href) + '" data-act="send" data-cid="' + c.id + '" data-slot="' + (slotId || '') + '">' + icon('send') + (small ? 'Hantar' : 'Hantar WhatsApp') + '</a>';
   }
   function focusCard(c, slotId) {
-    var m = nextMsg(c), n = now();
+    var m = msgFor(c, slotId), n = now();
     if (!m) {
       return '<article class="focus"><h2 class="focus-name">' + esc(pang(c)) + '</h2><p class="muted">Tiada mesej yang sesuai untuk penyimpan ini sekarang.</p><button class="btn" data-act="skip" data-cid="' + c.id + '" data-slot="' + slotId + '">Langkau</button></article>';
     }
@@ -513,7 +648,7 @@
       '</article>';
   }
   function emptySession() {
-    var ctx = C.makeCtx(S, now()), why = { stop: 0, telefon: 0, pendua: 0, harijadi: 0, jarak: 0, habis: 0 };
+    var ctx = C.makeCtx(S, now()), why = { stop: 0, telefon: 0, junior: 0, pendua: 0, harijadi: 0, jarak: 0, habis: 0 };
     var taken = C.takenToday(S, C.isoDay(now()));
     S.customers.forEach(function (c) { var r = C.blockReason(c, ctx); if (r) why[r]++; });
     var lines = [];
@@ -523,6 +658,7 @@
     if (Object.keys(taken).length) lines.push(Object.keys(taken).length + ' orang dah dimasukkan dalam sesi lain hari ini.');
     if (why.stop) lines.push(why.stop + ' orang minta STOP.');
     if (why.telefon) lines.push(why.telefon + ' orang tiada nombor telefon yang sah.');
+    if (why.junior) lines.push(why.junior + ' akaun Junior ditangguh (Tetapan → Kumpulan umur).');
     if (why.pendua) lines.push(why.pendua + ' rekod berkongsi nombor dengan penyimpan lain (dihantar sekali sahaja).');
     if (why.harijadi) lines.push(why.harijadi + ' orang berhari jadi hari ini. Ucap hari jadi mereka di skrin Hari Ini.');
     return '<section class="card"><h2>Tiada penyimpan untuk sesi ini</h2><ul class="problems">' + lines.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul></section>';
@@ -530,15 +666,16 @@
 
   /* ================= PENYIMPAN ================= */
   var FILTERS = [
-    { id: 'semua', label: 'Semua' }, { id: 'muda', label: 'Muda' }, { id: 'dewasa', label: 'Dewasa' }, { id: 'pertengahan', label: 'Pertengahan' },
-    { id: 'matang', label: 'Pra-bersara' }, { id: 'warga', label: 'Warga emas' }, { id: 'tiada', label: 'Tiada umur' },
+    { id: 'semua', label: 'Semua' }, { id: 'junior', label: 'Junior' }, { id: 'muda', label: 'MB30' }, { id: 'dewasa', label: 'CX' }, { id: 'pertengahan', label: 'CY' },
+    { id: 'matang', label: 'CZ' }, { id: 'warga', label: 'Pencen' }, { id: 'tiada', label: 'Tiada umur' }, { id: 'prospek', label: 'Tiada PG Code' },
     { id: 'harijadi', label: 'Hari jadi bulan ini' }, { id: 'stop', label: 'STOP' }
   ];
   function matchFilter(c, f, n) {
     if (f === 'semua') return true;
     if (f === 'stop') return !!c.optOut;
+    if (f === 'prospek') return C.isProspect(c);
     if (f === 'harijadi') { var p = C.dobParts(c.dob); return !!p && p.m === n.getMonth() + 1; }
-    var g = C.groupOf(c, S.settings, n);
+    var g = C.viewGroup(c, S.settings, n);
     if (f === 'tiada') return !g;
     return g === f;
   }
@@ -575,7 +712,7 @@
     var rows = list.slice(0, ui.climit).map(function (c) {
       var p = C.dobParts(c.dob);
       var side = ui.cf === 'harijadi' && p ? '<span class="chip gold">' + p.d + ' ' + C.BULAN_PENDEK[p.m - 1] + '</span>' : groupChip(c);
-      return '<li><a href="#/penyimpan/' + c.id + '"><span class="avatar" data-g="' + (C.groupOf(c, S.settings, n) || 'none') + '">' + initials(c) + '</span>' +
+      return '<li><a href="#/penyimpan/' + c.id + '"><span class="avatar" data-g="' + (C.viewGroup(c, S.settings, n) || 'none') + '">' + initials(c) + '</span>' +
         '<span class="who"><b>' + esc(C.displayName(c.name) || '(tiada nama)') + '</b><span>' + esc(pang(c)) + '&ensp;' + esc(C.fmtPhone(c.phone)) + '</span></span>' +
         '<span class="c-side">' + (c.optOut ? '<span class="chip stop">STOP</span>' : side) + '<span class="c-last">' + (c.last == null ? 'belum dihantar' : esc(C.daysAgo(td - c.last))) + '</span></span></a></li>';
     }).join('');
@@ -590,7 +727,7 @@
   }
   function viewCustomer(id) {
     var isNew = id === 'baru';
-    var c = isNew ? { id: '', name: '', phone: '', dob: '', by: 0, grp: '', gender: '', nick: '', tags: [], note: '', salam: '', optOut: false, sent: {}, last: null, bday: {} } : byId(id);
+    var c = isNew ? { id: '', name: '', phone: '', dob: '', by: 0, grp: '', gender: '', nick: '', title: '', pg: '', tags: [], note: '', salam: '', optOut: false, sent: {}, last: null, bday: {} } : byId(id);
     if (!c) return { top: topBar('Penyimpan', { back: '#/penyimpan' }), html: '<section class="card"><h2>Penyimpan tidak dijumpai</h2><a class="btn" href="#/penyimpan">Kembali ke senarai</a></section>' };
     var n = now(), s = S.settings;
     var allTags = {};
@@ -604,10 +741,12 @@
     var h = '<section class="card"><form id="cform" autocomplete="off">' +
       fld('Nama penuh', '<input data-cf="name" value="' + esc(c.name) + '" required autocapitalize="words">') +
       fld('No. telefon (WhatsApp)', '<input data-cf="phone" type="tel" inputmode="tel" value="' + esc(c.phone ? C.fmtPhone(c.phone) : '') + '" placeholder="cth: 012-345 6789">') +
+      fld('PG Code', '<input data-cf="pg" value="' + esc(c.pg || '') + '" placeholder="cth: PG01234567" autocapitalize="characters">', 'Kosong = belum buat belian (bakal pelanggan).') +
       fld('Tarikh lahir', '<input data-cf="dob" value="' + esc(dobInputValue(c)) + '" placeholder="cth: 16/08/1990" inputmode="numeric">', 'Hari/bulan/tahun. Tahun diperlukan untuk kumpulan umur.') +
       fld('No. IC (pilihan)', '<input data-cf="ic" inputmode="numeric" placeholder="cth: 900816-14-5678">', 'Hanya untuk isi tarikh lahir & jantina secara automatik. No. IC tidak disimpan.') +
       fld('Kumpulan umur', grpSel, 'Menentukan set ilmu, ayat pembuka dan ucapan hari jadi. Tetapkan sendiri jika tiada tarikh lahir.') +
-      fld('Panggilan', '<input data-cf="nick" value="' + esc(c.nick) + '" placeholder="Automatik: ' + esc(C.panggilan({ name: c.name, gender: c.gender, dob: c.dob, by: c.by }, s, n)) + '">', 'Kosongkan untuk guna panggilan automatik. Contoh: Kak Ros, Abang Mat, Dr. Lim.') +
+      fld('Gelaran', '<input data-cf="title" value="' + esc(c.title || '') + '" placeholder="cth: Tuan, Puan, Cik, Cikgu" autocapitalize="words">', 'Dari lajur Salutation. Dipakai di depan panggilan: Tuan + Daniel = Tuan Daniel. Tulis nama jika mahu panggil dengan nama itu sahaja.') +
+      fld('Panggilan', '<input data-cf="nick" value="' + esc(c.nick) + '" placeholder="Automatik: ' + esc(C.panggilan({ name: c.name, gender: c.gender, dob: c.dob, by: c.by, title: c.title }, s, n)) + '">', 'Nama pendek, cth: Daniel. Jika ada gelaran, app gabungkan: Tuan + Daniel = Tuan Daniel. Kosongkan untuk automatik.') +
       fld('Jantina', '<select data-cf="gender"><option value="">Automatik' + (info.gender ? ' (' + (info.gender === 'L' ? 'lelaki' : 'perempuan') + ')' : '') + '</option><option value="L"' + (c.gender === 'L' ? ' selected' : '') + '>Lelaki (Tuan)</option><option value="P"' + (c.gender === 'P' ? ' selected' : '') + '>Perempuan (Puan)</option></select>') +
       fld('Kumpulan', '<input data-cf="tags" value="' + esc((c.tags || []).join(', ')) + '" placeholder="cth: VIP, Johor">', 'Pisahkan dengan koma. Kumpulan "' + esc(s.nonMuslimTag) + '" disapa "' + esc(s.salamNonMuslim) + '" dan tak terima mesej Islamik.') +
       (tagChips ? '<div class="chips" style="margin:-6px 0 14px">' + tagChips + '</div>' : '') +
@@ -617,7 +756,7 @@
       '<div class="btn-row" style="margin-top:14px"><button class="btn primary" data-act="saveCustomer" data-id="' + esc(c.id) + '">Simpan</button></div>' +
       '</form></section>';
     if (!isNew) {
-      var g = C.groupOf(c, s, n), age = C.ageOf(c, n), m = nextMsg(c), rem = C.remainingFor(c, S.messages, s, n);
+      var g = C.viewGroup(c, s, n), age = C.ageOf(c, n), m = nextMsg(c), rem = C.remainingFor(c, S.messages, s, n);
       var dtb = c.dob ? C.daysToBirthday(c.dob, n) : null;
       h += '<section class="card"><h2 style="margin-bottom:12px">Ringkasan</h2><dl class="kv">' +
         '<dt>Kumpulan umur</dt><dd>' + (g ? esc(C.groupLabel(g, s.ageBounds)) + (age != null ? ', ' + age + ' tahun' : '') + (c.grp ? ' (ditetapkan manual)' : '') : 'Tiada. Terima set umum sahaja') + '</dd>' +
@@ -649,7 +788,7 @@
     var imp = ui.imp;
     if (imp && imp.step === 'siap') return { top: top, html: importDone(imp) };
     if (imp && imp.step === 'padan') return { top: top, html: importMap(imp) };
-    var h = '<section class="card"><h2>Pilih fail</h2><p class="muted small" style="margin-top:6px">Excel (.xlsx) atau CSV. App akan cari lajur Nama, No. Telefon, Tarikh Lahir atau No. IC, Kumpulan Umur, Panggilan, Kumpulan dan Catatan secara automatik.</p>' +
+    var h = '<section class="card"><h2>Pilih fail</h2><p class="muted small" style="margin-top:6px">Excel (.xlsx) atau CSV. App akan cari lajur Nama, No. Telefon, Tarikh Lahir atau No. IC, Kumpulan Umur, Gelaran (Salutation), Panggilan (Nickname), Kumpulan dan Catatan secara automatik.</p>' +
       '<div class="btn-row"><label class="btn primary file-btn">' + icon('upload') + 'Pilih fail Excel / CSV<input type="file" data-change="importFile" accept=".xlsx,.csv,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>' +
       '<a class="btn" href="templat-senarai-penyimpan.xlsx" download>' + icon('download') + 'Templat Excel</a></div></section>' +
       '<section class="card"><h2>Atau tampal dari Excel / Google Sheets</h2><p class="muted small" style="margin-top:6px">Pilih baris termasuk tajuk lajur, salin, kemudian tampal di sini.</p>' +
@@ -659,9 +798,14 @@
     return { top: top, html: h };
   }
   function letter(i) { var s = ''; i++; while (i > 0) { var r = (i - 1) % 26; s = String.fromCharCode(65 + r) + s; i = Math.floor((i - 1) / 26); } return s; }
+  function impRows(imp) { return imp.header ? imp.rows.slice(1) : imp.rows; }
+  function impDateOrder(imp) {
+    var di = imp.map.dob;
+    return di == null ? 'dmy' : C.dateOrder(impRows(imp).map(function (r) { return r[di]; }));
+  }
   function impItems(imp) {
-    var rows = imp.header ? imp.rows.slice(1) : imp.rows;
-    return rows.map(function (r) { return C.rowToCustomer(r, imp.map); });
+    var order = impDateOrder(imp);
+    return impRows(imp).map(function (r) { return C.rowToCustomer(r, imp.map, { dateOrder: order }); });
   }
   function importMap(imp) {
     var rows = imp.rows, head = rows[0] || [];
@@ -684,14 +828,20 @@
     S.customers.forEach(function (c) { existing[c.phone] = 1; });
     var upd = valid.filter(function (x) { return existing[x.phone]; }).length;
     var n = now();
+    var perPhone = {}, sharedPeople = 0, sharedNums = 0;
+    valid.forEach(function (x) { perPhone[x.phone] = (perPhone[x.phone] || 0) + 1; });
+    Object.keys(perPhone).forEach(function (p) { if (perPhone[p] > 1) { sharedNums++; sharedPeople += perPhone[p]; } });
+    var pgOn = imp.map.pg != null, pgNone = pgOn ? valid.filter(function (x) { return !x.pg; }).length : 0;
+    var juniors = S.settings.pauseJunior ? valid.filter(function (x) { return C.isJunior({ dob: x.dob, by: x.by }, n); }).length : 0;
+    var dummy = bad.filter(function (x) { return C.phoneDummy(x.phone); }).length;
     var gcount = {};
-    valid.forEach(function (x) { var g = C.groupOf({ dob: x.dob, by: x.by, grp: x.grp }, S.settings, n) || 'none'; gcount[g] = (gcount[g] || 0) + 1; });
-    var gsum = C.AGE_GROUPS.map(function (g) { return g.id; }).concat(['none']).filter(function (g) { return gcount[g]; }).map(function (g) {
+    valid.forEach(function (x) { var g = C.viewGroup({ dob: x.dob, by: x.by, grp: x.grp }, S.settings, n) || 'none'; gcount[g] = (gcount[g] || 0) + 1; });
+    var gsum = ['junior'].concat(C.AGE_GROUPS.map(function (g) { return g.id; })).concat(['none']).filter(function (g) { return gcount[g]; }).map(function (g) {
       return '<span class="chip" data-g="' + g + '">' + esc(g === 'none' ? 'Tiada umur' : C.groupLabel(g, S.settings.ageBounds, false)) + ' ' + gcount[g] + '</span>';
     }).join('');
     var prev = valid.slice(0, 5).map(function (x) {
-      var cust = { id: 'p', name: x.name, dob: x.dob, by: x.by, grp: x.grp, gender: x.gender, nick: x.nick, tags: x.tags };
-      var g = C.groupOf(cust, S.settings, n);
+      var cust = { id: 'p', name: x.name, dob: x.dob, by: x.by, grp: x.grp, gender: x.gender, nick: x.nick, title: x.title, tags: x.tags };
+      var g = C.viewGroup(cust, S.settings, n);
       return '<li><b>' + esc(C.panggilan(cust, S.settings, n)) + '</b><span class="pv-name">' + esc(x.name) + '</span><span class="pv-meta"><span>' + esc(C.fmtPhone(x.phone)) + '</span>' +
         '<span>' + (x.dob ? 'Lahir ' + esc(C.fmtDob(x.dob)) : x.by ? 'Lahir ' + x.by : x.grp ? 'Kumpulan dari senarai' : 'Tiada tarikh lahir') + '</span><span class="chip" data-g="' + (g || 'none') + '">' + (g ? esc(C.groupLabel(g, S.settings.ageBounds, false)) : 'Tiada umur') + '</span></span></li>';
     }).join('');
@@ -705,10 +855,15 @@
       '<label class="field" style="margin-top:12px"><span>Tambah kumpulan untuk semua (pilihan)</span><input data-change="impTag" value="' + esc(imp.tag || '') + '" placeholder="cth: Import Okt 2026"></label></section>' +
       '<section class="card"><h2>Semakan</h2><p style="margin-top:8px"><span class="good">' + valid.length + ' sah</span>' + (upd ? ', ' + upd + ' akan dikemas kini' : '') +
       (bad.length ? ', <span class="bad">' + bad.length + ' tiada nombor yang sah</span>' : '') + '. ' + withDob + ' ada tarikh lahir atau umur.</p>' +
+      (dummy ? '<p class="small muted">' + dummy + ' daripada yang dilangkau guna nombor pengganti (contoh 010-000 0000). Isi nombor sebenar dalam Excel jika mahu mereka dimasukkan.</p>' : '') +
+      (pgOn ? '<p class="small muted">' + (valid.length - pgNone) + ' ada PG Code, <b>' + pgNone + ' tiada PG Code</b> (bakal pelanggan, diasingkan).</p>' : '') +
+      (sharedNums ? '<p class="small muted">' + sharedPeople + ' orang berkongsi ' + sharedNums + ' nombor. Setiap nombor terima satu mesej sahaja.</p>' : '') +
+      (juniors ? '<p class="small muted">' + juniors + ' akaun Junior (bawah ' + C.JUNIOR_AGE + ' tahun) akan disimpan tetapi ditangguh.</p>' : '') +
+      (impDateOrder(imp) === 'mdy' ? '<p class="small muted">Tarikh lahir dalam fail ini ditulis bulan/hari/tahun (contoh 3/15/1990 = 15 Mac 1990), jadi semua tarikh dibaca begitu.</p>' : '') +
       (gsum ? '<p class="small muted" style="margin:10px 0 6px">Pembahagian umur (menentukan set ilmu yang diterima):</p><div class="chips">' + gsum + '</div>' : '') +
       (imp.map.phone == null ? '<p class="bad">Pilih lajur nombor telefon dahulu.</p>' : '') +
       (prev ? '<p class="small muted" style="margin:12px 0 0">Contoh (5 pertama), dengan panggilan yang akan digunakan:</p><ul class="prevlist">' + prev + '</ul>' : '') +
-      (bad.length ? '<p class="small muted" style="margin:12px 0 0">Akan dilangkau:</p><ul class="problems">' + bad.slice(0, 5).map(function (x) { return '<li>' + esc(x.name || '(tiada nama)') + ': ' + (x.rawPhone ? '"' + esc(x.rawPhone) + '" bukan nombor telefon yang sah' : 'tiada nombor telefon') + '</li>'; }).join('') + (bad.length > 5 ? '<li>dan ' + (bad.length - 5) + ' lagi</li>' : '') + '</ul>' : '') +
+      (bad.length ? '<p class="small muted" style="margin:12px 0 0">Akan dilangkau:</p><ul class="problems">' + bad.slice(0, 5).map(function (x) { return '<li>' + esc(x.name || '(tiada nama)') + ': ' + (C.phoneDummy(x.phone) ? 'nombor pengganti, bukan nombor sebenar' : x.rawPhone ? '"' + esc(x.rawPhone) + '" bukan nombor telefon yang sah' : 'tiada nombor telefon') + '</li>'; }).join('') + (bad.length > 5 ? '<li>dan ' + (bad.length - 5) + ' lagi</li>' : '') + '</ul>' : '') +
       '<div class="btn-row" style="margin-top:14px"><button class="btn" data-act="impCancel">Batal</button><button class="btn primary" data-act="importGo"' + (valid.length ? '' : ' disabled') + '>Import ' + valid.length + ' penyimpan</button></div></section>';
   }
   function importDone(imp) {
@@ -754,6 +909,15 @@
     S.customers.forEach(function (c) { Object.keys(c.sent || {}).forEach(function (k) { cnt[k] = (cnt[k] || 0) + 1; }); });
     return cnt;
   }
+  // Kemajuan skrip kategori (Set 1, Set 2…): bila hampir semua dah terima, tiba masa set baharu
+  function scriptCard() {
+    var st = C.scriptStats(S, now()), low = C.scriptsLow(st);
+    var rows = C.AGE_GROUPS.map(function (g) {
+      var x = st[g.id], pct = x.people ? Math.round(x.done / x.people * 100) : 0;
+      return '<li><span class="chip" data-g="' + g.id + '">' + esc(C.groupLabel(g.id, S.settings.ageBounds, false)) + '</span><span class="muted small">' + x.scripts + ' skrip</span><b' + (low.indexOf(g.id) >= 0 ? ' class="bad"' : '') + '>' + x.done + '/' + x.people + ' habis (' + pct + '%)</b></li>';
+    }).join('');
+    return '<section class="card scripts"><h2>Skrip kategori</h2><p class="muted small" style="margin:6px 0 10px">Skrip ringkas ikut kategori Excel, dihantar dahulu sebelum pustaka asal. Bila lebih ' + Math.round(C.SCRIPT_LOW * 100) + '% penyimpan sesuatu kategori dah terima semua, minta set skrip baharu.</p><ul class="scriptlist">' + rows + '</ul></section>';
+  }
   function viewMessages() {
     var cnt = sentCounts();
     var list = S.messages.map(function (m, i) { return { m: m, i: i }; }).filter(function (x) {
@@ -764,7 +928,7 @@
     });
     var cats = CATS.map(function (c) { return '<button class="fchip" data-act="msgCat" data-f="' + c[0] + '" aria-pressed="' + (ui.msgCat === c[0]) + '">' + c[1] + '</button>'; }).join('');
     var ageSel = '<select data-change="msgAge" aria-label="Tapis ikut umur" class="fchip" style="padding-right:8px">' +
-      [['semua', 'Semua umur'], ['umum', 'Mesej umum'], ['muda', 'Muda'], ['dewasa', 'Dewasa'], ['pertengahan', 'Pertengahan'], ['matang', 'Pra-bersara'], ['warga', 'Warga emas']]
+      [['semua', 'Semua umur'], ['umum', 'Mesej umum'], ['muda', 'MB30'], ['dewasa', 'CX'], ['pertengahan', 'CY'], ['matang', 'CZ'], ['warga', 'Pencen']]
         .map(function (o) { return '<option value="' + o[0] + '"' + (ui.msgAge === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>';
     var rows = list.map(function (x) {
       var m = x.m;
@@ -778,7 +942,7 @@
     var sets = C.AGE_GROUPS.map(function (g) {
       return '<li><span class="chip" data-g="' + g.id + '">' + esc(C.groupLabel(g.id, S.settings.ageBounds)) + '</span><b>' + (nGen + on.filter(function (m) { return m.ages.indexOf(g.id) >= 0; }).length) + '</b></li>';
     }).join('');
-    var h = seg('mesej') + '<section class="card sets"><h2>Set ilmu ikut umur</h2><p class="muted small" style="margin:6px 0 10px">Setiap penyimpan terima ' + nGen + ' ilmu umum, ditambah set khas untuk kumpulan umurnya. Jumlah mesej setiap kumpulan:</p><ul class="setlist">' + sets + '</ul></section>' +
+    var h = seg('mesej') + '<section class="card sets"><h2>Set ilmu ikut umur</h2><p class="muted small" style="margin:6px 0 10px">Setiap penyimpan terima ' + nGen + ' ilmu umum, ditambah set khas untuk kumpulan umurnya. Jumlah mesej setiap kumpulan:</p><ul class="setlist">' + sets + '</ul></section>' + scriptCard() +
       '<div class="filter-row" role="group" aria-label="Tapis kategori">' + cats + ageSel + '</div>' +
       '<p class="hint">Mesej dihantar ikut susunan ini, hanya yang sesuai dengan kumpulan umur penyimpan. Nombor di kanan ialah bilangan penyimpan yang dah terima. ' +
       '<a class="linkish" href="#/baca/' + (C.AGE_GROUPS.some(function (g) { return g.id === ui.msgAge; }) ? ui.msgAge : 'dewasa') + '">Baca semua ikut kumpulan umur</a></p>' +
@@ -787,8 +951,8 @@
     return { top: topBar('Mesej'), html: h };
   }
   var SAMPLE_NAMES = {
-    muda: ['Muhammad Hafiz bin Rahman', 26], dewasa: ['Siti Aminah binti Ali', 35], pertengahan: ['Zulkifli bin Hassan', 46],
-    matang: ['Rosnah binti Abdullah', 55], warga: ['Hasnah binti Omar', 64], tiada: ['Farid Iskandar', null]
+    muda: ['Muhammad Hafiz bin Rahman', 22], dewasa: ['Siti Aminah binti Ali', 31], pertengahan: ['Zulkifli bin Hassan', 41],
+    matang: ['Rosnah binti Abdullah', 51], warga: ['Hasnah binti Omar', 64], tiada: ['Farid Iskandar', null]
   };
   function sampleCustomer(g, nm) {
     var x = SAMPLE_NAMES[g] || SAMPLE_NAMES.dewasa, y = new Date().getFullYear();
@@ -823,6 +987,7 @@
     var ageT = '<button type="button" data-act="draftAge" data-g="" aria-pressed="' + (!d.ages.length) + '">Semua umur</button>' +
       C.AGE_GROUPS.map(function (g) { return '<button type="button" data-act="draftAge" data-g="' + g.id + '" aria-pressed="' + (d.ages.indexOf(g.id) >= 0) + '">' + esc(C.groupLabel(g.id, S.settings.ageBounds)) + '</button>'; }).join('');
     var h = '<section class="card">' +
+      (d.src ? '<p class="small muted" style="margin:0 0 12px">Sumber idea: <a class="linkish" href="' + esc(d.src) + '" target="_blank" rel="noopener noreferrer">artikel di mohdzulkifli.com</a></p>' : '') +
       fld('Tajuk (untuk rujukan anda)', '<input data-input="draft" data-k="title" value="' + esc(d.title) + '" placeholder="cth: Promosi hujung tahun">') +
       fld('Kategori', '<select data-change="draft" data-k="cat">' + CATS.slice(1).map(function (c) { return '<option value="' + c[0] + '"' + (d.cat === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select>') +
       '<fieldset class="field"><legend>Untuk kumpulan umur</legend><div class="toggles">' + ageT + '</div></fieldset>' +
@@ -947,11 +1112,16 @@
       sfield('Sapaan lalai', 'salam', s.salam, 'placeholder="Assalamualaikum"') +
       fld('Panggilan automatik', '<select data-s="honorific">' + [['tuanpuan', 'Tuan/Puan + nama (cth: Puan Aminah)'], ['umur', 'Ikut umur: bawah 30 nama sahaja'], ['nama', 'Nama sahaja (cth: Aminah)']].map(function (o) {
         return '<option value="' + o[0] + '"' + (s.honorific === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
-      }).join('') + '</select>', 'Jantina dikesan daripada "bin/binti", "a/l, a/p" atau No. IC. Jika tak pasti, nama sahaja digunakan. Boleh tetapkan panggilan khas untuk setiap penyimpan.') +
+      }).join('') + '</select>', 'Untuk penyimpan tanpa gelaran sahaja. Gelaran dari Excel (Tuan, Puan, Cik…) sentiasa diikut. Jantina dikesan daripada "bin/binti", "a/l, a/p" atau No. IC.') +
       sfield('Nama kumpulan bukan Islam', 'nonMuslimTag', s.nonMuslimTag, '', 'Letak kumpulan ini pada penyimpan bukan Islam. Mereka tidak akan terima mesej Islamik (zakat, faraid, hadis).') +
       sfield('Sapaan untuk kumpulan ini', 'salamNonMuslim', s.salamNonMuslim) +
       '</section>' +
-      '<section class="card"><h2>Jadual sesi</h2><p class="muted small" style="margin:6px 0 4px">Hidupkan, namakan, tetapkan masa dan bilangan orang bagi setiap sesi.</p>' + slots +
+      '<section class="card"><h2 style="margin-bottom:14px">Cara broadcast</h2>' +
+      fld('Siapa pilih penerima & skrip?', '<select data-s="mode">' + [['pilih', 'Saya pilih sendiri (broadcast pilihan)'], ['auto', 'Automatik ikut sesi pagi & petang']].map(function (o) {
+        return '<option value="' + o[0] + '"' + (s.mode === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('') + '</select>', 'Pilih sendiri: di Hari Ini, tekan "Sediakan broadcast", pilih skrip dan penerima. Automatik: app pilih ' + 'penerima dan mesej seterusnya untuk setiap sesi.') +
+      sfield('Cadangan had mesej sehari', 'dailyLimit', s.dailyLimit, 'type="number" min="0" max="500" inputmode="numeric" data-type="num"', 'Amaran bila melebihi had ini, supaya nombor anda tidak disekat. 0 = tiada amaran.') + '</section>' +
+      '<section class="card"><h2>Jadual sesi</h2><p class="muted small" style="margin:6px 0 4px">' + (s.mode === 'auto' ? 'Hidupkan, namakan, tetapkan masa dan bilangan orang bagi setiap sesi.' : 'Digunakan dalam mod automatik sahaja (dan untuk peringatan kalendar).') + '</p>' + slots +
       '<fieldset class="field" style="margin-top:14px"><legend>Hari aktif</legend><div class="toggles">' + days + '</div></fieldset>' +
       sfield('Jarak minimum antara mesej (hari)', 'minGapDays', s.minGapDays, 'type="number" min="1" max="60" inputmode="numeric" data-type="num"', 'Penyimpan tidak akan terima mesej lagi sebelum tempoh ini.') +
       sfield('Ulang mesej lama selepas (hari)', 'repeatAfterDays', s.repeatAfterDays, 'type="number" min="0" max="1000" inputmode="numeric" data-type="num"', 'Bila semua mesej dah diterima, mesej paling lama dihantar semula selepas tempoh ini. 0 = tidak diulang.') +
@@ -961,9 +1131,10 @@
       fld('Kekerapan', '<select data-s="stopEvery" data-type="num">' + stopOpts.map(function (o) { return '<option value="' + o[0] + '"' + (+s.stopEvery === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>',
         'Memberi pilihan berhenti mengurangkan risiko nombor anda di-report sebagai spam.') + '</section>' +
       '<section class="card"><h2>Kumpulan umur</h2><p class="muted small" style="margin:6px 0 10px">Had umur bagi setiap kumpulan. Mesej dalam pustaka ditulis untuk peringkat hidup ini.</p><div class="bounds">' +
-      ['Muda: bawah', 'Dewasa: bawah', 'Pertengahan: bawah', 'Pra-bersara: bawah'].map(function (l, i) {
+      ['MB30: bawah', 'CX: bawah', 'CY: bawah', 'CZ: bawah'].map(function (l, i) {
         return '<label>' + l + '<input type="number" min="15" max="99" inputmode="numeric" data-s="ageBounds.' + i + '" data-type="num" value="' + s.ageBounds[i] + '"></label>';
-      }).join('') + '</div><p class="small muted" style="margin-top:8px">Warga emas: ' + s.ageBounds[3] + ' tahun ke atas.</p></section>' +
+      }).join('') + '</div><p class="small muted" style="margin-top:8px">Pencen: ' + s.ageBounds[3] + ' tahun ke atas. Junior: bawah ' + C.JUNIOR_AGE + ' tahun.</p>' +
+      '<label class="switch" style="margin-top:6px"><input type="checkbox" data-s="pauseJunior" data-type="bool"' + (s.pauseJunior ? ' checked' : '') + '><span class="sw-text"><b>Tangguh akaun Junior (bawah ' + C.JUNIOR_AGE + ' tahun)</b><small>Tidak dimasukkan dalam sesi dan ucapan hari jadi. Nombor yang dikongsi dengan ibu bapa tetap terima mesej ibu bapa.</small></span></label></section>' +
       '<section class="card"><h2 style="margin-bottom:14px">WhatsApp</h2>' +
       fld('Cara buka WhatsApp', '<select data-s="linkMode">' + modeOpts.map(function (o) { return '<option value="' + o[0] + '"' + (s.linkMode === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>',
         'Automatik: telefon guna wa.me (iPhone yang dipasang di skrin utama terus ke app WhatsApp), komputer guna WhatsApp Web. Guna WhatsApp Business? Pilih "WhatsApp Business (Android)" di telefon Android.') +
@@ -986,12 +1157,14 @@
     var h = '<section class="card guide"><h2>Cara app ini berfungsi</h2>' +
       '<p>Setiap hari, app pilih ' + perDay + ' penyimpan (' + s.slots.filter(function (x) { return x.on; }).map(function (x) { return x.size + ' ' + x.name.toLowerCase(); }).join(', ') + ') yang paling lama tidak menerima mesej. Setiap orang dapat tips yang sesuai dengan umurnya, mengikut susunan dalam pustaka, dengan nama dan sapaan masing-masing.</p>' +
       '<h3>Mesej peribadi ikut umur</h3><ul>' +
-      '<li><b>Panggilan:</b> ' + (s.honorific === 'umur' ? 'nama sendiri untuk bawah ' + s.ageBounds[0] + ' tahun, Tuan/Puan + nama untuk yang lebih berusia' : s.honorific === 'nama' ? 'nama sahaja untuk semua' : 'Tuan/Puan + nama untuk semua') + ' (tukar dalam Tetapan).</li>' +
+      '<li><b>Panggilan:</b> ' + (s.honorific === 'umur' ? 'gelaran dari Excel (Tuan, Puan, Cik, Cikgu…) + nama panggilan; jika tiada gelaran, nama sendiri untuk bawah 30 tahun dan Tuan/Puan + nama untuk yang lebih berusia' : s.honorific === 'nama' ? 'nama sahaja untuk semua' : 'Tuan/Puan + nama untuk semua') + ' (tukar dalam Tetapan).</li>' +
       '<li><b>Ayat pembuka:</b> nada berbeza ikut umur, contohnya "Hai Hafiz! 👋" untuk orang muda dan "Assalamualaikum Puan Hasnah, semoga sihat dan ceria selalu 🌷" untuk warga emas.</li>' +
-      '<li><b>Set ilmu:</b> semua dapat ilmu umum, ditambah set khas peringkat hidup: kerjaya & kahwin (muda), anak & rumah (dewasa), persaraan & sandwich (pertengahan), KWSP 55 & pusaka (pra-bersara), scam & waris (warga emas).</li>' +
+      '<li><b>Set ilmu:</b> semua dapat ilmu umum, ditambah set khas peringkat hidup: kerjaya & mula menyimpan (MB30, 18–25), kahwin, anak & rumah (CX, 26–35), pendidikan anak & generasi sandwich (CY, 36–45), KWSP 55 & pusaka (CZ, 46–55), scam & waris (Pencen, 56+). Akaun Junior (bawah 18) boleh ditangguh dalam Tetapan.</li>' +
       '<li><b>Hari jadi:</b> ucapan dipilih ikut umur, dan berubah setiap tahun.</li></ul>' +
       '<p>App tidak menghantar mesej secara automatik. WhatsApp tidak membenarkan penghantaran automatik daripada app biasa, dan cara ini juga paling selamat untuk nombor anda. Anda hanya tekan Hantar, kemudian tekan hantar sekali lagi dalam WhatsApp.</p>' +
-      '<h3>Rutin harian</h3><ol><li>Buka app pada waktu sesi pagi. Ucap hari jadi dahulu jika ada.</li><li>Tekan <b>Mula sesi pagi</b>, kemudian Hantar untuk setiap orang (kira-kira 5–10 minit).</li><li>Ulang untuk sesi petang.</li><li>Seminggu sekali: <b>Tetapan → Muat turun backup</b>.</li></ol>' +
+      (s.mode === 'auto'
+        ? '<h3>Rutin harian</h3><ol><li>Buka app pada waktu sesi pagi. Ucap hari jadi dahulu jika ada.</li><li>Tekan <b>Mula sesi pagi</b>, kemudian Hantar untuk setiap orang (kira-kira 5–10 minit).</li><li>Ulang untuk sesi petang.</li><li>Seminggu sekali: <b>Tetapan → Muat turun backup</b>.</li></ol>'
+        : '<h3>Rutin harian (broadcast pilihan)</h3><ol><li>Ucap hari jadi dahulu jika ada.</li><li>Tekan <b>Sediakan broadcast</b>: pilih skrip, kemudian pilih penerima (status PG Code, kategori umur, kumpulan).</li><li>Tekan Hantar untuk setiap orang. App terus ke penerima seterusnya. Broadcast besar boleh disambung esok.</li><li>Seminggu sekali: <b>Tetapan → Muat turun backup</b>.</li></ol>') +
       '<h3>Tips elak nombor disekat WhatsApp</h3><ul>' +
       '<li>Hantar hanya kepada penyimpan anda sendiri — orang yang kenal anda.</li>' +
       '<li>Minta pelanggan simpan nombor anda. Mesej daripada nombor yang disimpan jarang di-report.</li>' +
@@ -1024,9 +1197,10 @@
     var c = byId(cid); if (!c) return;
     var s = S.settings;
     openSheet('<h3>' + esc(pang(c)) + '</h3><p class="muted small">' + esc(C.displayName(c.name)) + ', ' + esc(C.fmtPhone(c.phone)) + '</p><ul class="menu">' +
-      '<li><button data-act="skip" data-cid="' + cid + '" data-slot="' + slotId + '">' + icon('skip') + '<span>Langkau hari ini<small>Dia akan masuk sesi lain nanti.</small></span></button></li>' +
-      '<li><button data-act="skipMsg" data-cid="' + cid + '">' + icon('shuffle') + '<span>Tukar ke mesej seterusnya<small>Mesej ini tidak sesuai untuk dia.</small></span></button></li>' +
-      (s.myPhone ? '<li><button data-act="testPerson" data-cid="' + cid + '">' + icon('phone') + '<span>Uji hantar ke nombor saya</span></button></li>' : '') +
+      (campOf(slotId) ? '<li><button data-act="skip" data-cid="' + cid + '" data-slot="' + slotId + '">' + icon('skip') + '<span>Buang dari senarai ini<small>Dia tidak akan terima broadcast ini.</small></span></button></li>'
+        : '<li><button data-act="skip" data-cid="' + cid + '" data-slot="' + slotId + '">' + icon('skip') + '<span>Langkau hari ini<small>Dia akan masuk sesi lain nanti.</small></span></button></li>' +
+        '<li><button data-act="skipMsg" data-cid="' + cid + '">' + icon('shuffle') + '<span>Tukar ke mesej seterusnya<small>Mesej ini tidak sesuai untuk dia.</small></span></button></li>') +
+      (s.myPhone ? '<li><button data-act="testPerson" data-cid="' + cid + '" data-slot="' + slotId + '">' + icon('phone') + '<span>Uji hantar ke nombor saya</span></button></li>' : '') +
       '<li><button data-act="editPerson" data-cid="' + cid + '">' + icon('edit') + '<span>Edit maklumat penyimpan</span></button></li>' +
       '<li><button class="danger" data-act="markStop" data-cid="' + cid + '" data-slot="' + slotId + '">' + icon('stop') + '<span>Tanda STOP<small>Dia minta berhenti terima mesej.</small></span></button></li>' +
       '</ul>', 'Pilihan penyimpan');
@@ -1047,9 +1221,9 @@
     },
     send: function (a, e) {
       var c = byId(a.dataset.cid); if (!c) { e.preventDefault(); return; }
-      var m = nextMsg(c);
-      if (!m) { e.preventDefault(); toast('Tiada mesej yang sesuai untuk penyimpan ini.', 'err'); return; }
       var slotId = a.dataset.slot;
+      var m = msgFor(c, slotId);
+      if (!m) { e.preventDefault(); toast('Tiada mesej yang sesuai untuk penyimpan ini.', 'err'); return; }
       if (c.demo) {
         e.preventDefault();
         markSent(c, m, slotId); ui.justDone = true; render(true);
@@ -1078,8 +1252,9 @@
     expand: function (a) { var b = $('#fbubble'); if (b) { b.classList.remove('clamp'); a.remove(); } },
     personMenu: function (a) { personMenu(a.dataset.cid, a.dataset.slot); },
     skip: function (a) {
-      var b = C.ensureBatch(S, a.dataset.slot, now()); b.skip[a.dataset.cid] = 1; save(); closeSheet(); render(true);
-      toast('Dilangkau untuk hari ini.');
+      var k = campOf(a.dataset.slot);
+      var b = k || C.ensureBatch(S, a.dataset.slot, now()); b.skip[a.dataset.cid] = 1; save(); closeSheet(); render(true);
+      toast(k ? 'Dibuang daripada senarai broadcast ini.' : 'Dilangkau untuk hari ini.');
     },
     skipMsg: function (a) {
       var c = byId(a.dataset.cid), m = c && nextMsg(c); closeSheet();
@@ -1088,7 +1263,7 @@
       toast('"' + m.title + '" dilangkau untuk ' + pang(c) + '.');
     },
     testPerson: function (a) {
-      var c = byId(a.dataset.cid), m = c && nextMsg(c); closeSheet();
+      var c = byId(a.dataset.cid), m = c && msgFor(c, a.dataset.slot); closeSheet();
       if (!c || !m) return;
       openWa(S.settings.myPhone, broadcastText(c, m));
     },
@@ -1096,9 +1271,30 @@
     markStop: function (a) {
       var c = byId(a.dataset.cid); if (!c) return;
       c.optOut = true;
-      var b = C.ensureBatch(S, a.dataset.slot, now()); b.skip[c.id] = 1;
+      var b = campOf(a.dataset.slot) || C.ensureBatch(S, a.dataset.slot, now()); b.skip[c.id] = 1;
       save(); closeSheet(); render(true);
       toast(pang(c) + ' ditanda STOP.', null, { label: 'Batal', fn: function () { c.optOut = false; delete b.skip[c.id]; save(); render(true); } });
+    },
+    campStatus: function (a) { campDraft().status = a.dataset.v; render(true); },
+    campGroup: function (a) {
+      var d = campDraft(), g = a.dataset.g;
+      if (!g) d.groups = []; else { var i = d.groups.indexOf(g); if (i >= 0) d.groups.splice(i, 1); else d.groups.push(g); }
+      render(true);
+    },
+    campTag: function (a) { var d = campDraft(), t = a.dataset.t, i = d.tags.indexOf(t); if (i >= 0) d.tags.splice(i, 1); else d.tags.push(t); render(true); },
+    campCreate: function () {
+      var d = campDraft(), m = msgById(d.msg); if (!m) return;
+      var k = C.newCampaign(S, m, { groups: d.groups.slice(), status: d.status, tags: d.tags.slice(), skipReceived: d.skipReceived !== false }, now());
+      if (!k.ids.length) { S.campaigns.shift(); toast('Tiada penerima untuk pilihan ini.', 'err'); return; }
+      ui.camp = null; save(); go('broadcast/' + k.id);
+      ui.pendingToast = 'Broadcast "' + k.title + '" disediakan untuk ' + k.ids.length + ' orang.';
+    },
+    campDelete: function (a) {
+      var k = campById(a.dataset.id); if (!k) return;
+      confirmBox('Padam broadcast ini?', 'Senarai penerima "' + k.title + '" dibuang. Sejarah mesej yang dah dihantar kekal.', 'Padam', true).then(function (ok) {
+        if (!ok) return;
+        S.campaigns = S.campaigns.filter(function (x) { return x !== k; }); save(); go('hari-ini'); toast('Broadcast dipadam.');
+      });
     },
     topup: function (a) {
       var added = C.topUpBatch(S, a.dataset.slot, 10, now()); save(); render(true);
@@ -1245,6 +1441,8 @@
     impSheet: function (el) { ui.imp.si = +el.value; detectImp(); render(true); },
     impTag: function (el) { ui.imp.tag = el.value; },
     msgAge: function (el) { ui.msgAge = el.value; render(true); },
+    campMsg: function (el) { campDraft().msg = el.value; render(true); },
+    campSkipRecv: function (el) { campDraft().skipReceived = el.checked; render(true); },
     openerAge: function (el) { ui.openerAge = el.value; render(true); },
     previewAs: function (el) { ui.previewAs = el.value; refreshPreview(); },
     previewNM: function (el) { ui.previewNM = el.checked; refreshPreview(); },
@@ -1309,9 +1507,10 @@
     }
     if (key === 'minGapDays' && v < 1) v = 1;
     if (/^slots\.\d+\.size$/.test(key)) v = Math.max(1, Math.min(200, v));
+    if (key === 'dailyLimit') v = Math.max(0, Math.min(500, v));
     setPath(S.settings, key, v);
     save();
-    if (type === 'bool' || /^slots\.\d+\.(size|time)$/.test(key) || /^(ageBounds|honorific|myName|signature)$|^ageBounds\./.test(key)) render(true);
+    if (type === 'bool' || /^slots\.\d+\.(size|time)$/.test(key) || /^(ageBounds|honorific|myName|signature|mode)$|^ageBounds\./.test(key)) render(true);
     toast('Tetapan disimpan.');
   }
 
@@ -1322,12 +1521,14 @@
     var name = C.displayName(f.name), phone = C.normPhone(f.phone);
     if (!name) { toast('Isi nama penyimpan.', 'err'); return; }
     if (!C.phoneOk(phone)) { toast('Nombor telefon tidak sah. Contoh: 012-345 6789', 'err'); return; }
+    var c0 = id ? byId(id) : null; // PG Code tidak diketahui kekal tidak diketahui jika medan dibiar kosong
     var dob = C.parseDob(f.dob), by = 0, gender = f.gender;
     if (String(f.dob).trim() && !dob) { by = C.parseBirthYear(f.dob); if (!by) { toast('Tarikh lahir tidak difahami. Contoh: 16/08/1990', 'err'); return; } }
     var ic = C.icInfo(f.ic);
     if (String(f.ic || '').trim() && !ic) { toast('No. IC tidak sah. Contoh: 900816-14-5678', 'err'); return; }
     if (ic) { if (!dob) { dob = ic.dob; by = 0; } if (!gender) gender = ic.gender; }
-    var data = { name: name, phone: phone, dob: dob, by: by, grp: f.grp || '', gender: gender, nick: String(f.nick || '').trim(), tags: C.parseTags(f.tags), note: String(f.note || '').trim(), salam: String(f.salam || '').trim() };
+    var data = { name: name, phone: phone, dob: dob, by: by, grp: f.grp || '', gender: gender, nick: String(f.nick || '').trim(), title: String(f.title || '').trim(),
+      pg: String(f.pg || '').trim().toUpperCase() || (c0 && c0.pg == null ? null : ''), tags: C.parseTags(f.tags), note: String(f.note || '').trim(), salam: String(f.salam || '').trim() };
     var c = id ? byId(id) : null;
     var dupe = S.customers.filter(function (x) { return x.phone === phone && x !== c; })[0];
     if (!c) {
@@ -1389,11 +1590,11 @@
   }
   function exportCsv() {
     var n = now(), s = S.settings;
-    var rows = [['Nama', 'No Telefon', 'Tarikh Lahir', 'Umur', 'Kumpulan Umur', 'Panggilan', 'Jantina', 'Kumpulan', 'Catatan', 'STOP', 'Mesej Diterima', 'Terakhir Dihantar']];
+    var rows = [['Nama', 'No Telefon', 'Tarikh Lahir', 'Umur', 'Kumpulan Umur', 'Panggilan', 'Gelaran', 'PG Code', 'Jantina', 'Kumpulan', 'Catatan', 'STOP', 'Mesej Diterima', 'Terakhir Dihantar']];
     S.customers.forEach(function (c) {
-      var p = C.dobParts(c.dob), g = C.groupOf(c, s, n);
+      var p = C.dobParts(c.dob), g = C.viewGroup(c, s, n);
       rows.push([C.displayName(c.name), c.phone ? '0' + c.phone.slice(2) : '', p ? C.pad(p.d) + '/' + C.pad(p.m) + (p.y ? '/' + p.y : '') : (c.by ? String(c.by) : ''),
-        C.ageOf(c, n) == null ? '' : C.ageOf(c, n), g ? C.groupLabel(g, s.ageBounds) : '', pang(c), c.gender === 'L' ? 'Lelaki' : c.gender === 'P' ? 'Perempuan' : '',
+        C.ageOf(c, n) == null ? '' : C.ageOf(c, n), g ? C.groupLabel(g, s.ageBounds) : '', pang(c), c.title || '', c.pg || '', c.gender === 'L' ? 'Lelaki' : c.gender === 'P' ? 'Perempuan' : '',
         (c.tags || []).join(', '), c.note || '', c.optOut ? 'Ya' : '', Object.keys(c.sent || {}).length, c.last == null ? '' : C.isoDay(C.dayToDate(c.last))]);
     });
     download(new Blob(['﻿' + C.toCSV(rows)], { type: 'text/csv;charset=utf-8' }), 'senarai-penyimpan-' + C.isoDay(n) + '.csv');

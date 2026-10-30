@@ -48,8 +48,8 @@ const v1State = {
   ok(/Pustaka dikemas kini/.test(toast), 'toast kemas kini muncul');
   const S = await page.evaluate(() => window.SEApp.state());
   const ids = S.messages.map(m => m.id);
-  ok(S.contentVersion === 2, 'contentVersion 2');
-  ok(S.messages.length === 166 - 1 + 1, 'jumlah = 166 - 1 dipadam + 1 sendiri: ' + S.messages.length);
+  ok(S.contentVersion === 5, 'contentVersion 5');
+  ok(S.messages.length === 256 - 1 + 1, 'jumlah = 256 - 1 dipadam + 1 sendiri: ' + S.messages.length);
   ok(!ids.includes(removedId), 'mesej yang pengguna padam tidak kembali');
   ok(ids.indexOf('Uabc') === 2, 'mesej sendiri kekal pada kedudukan: ' + ids.indexOf('Uabc'));
   const ed = S.messages.find(m => m.id === editedId);
@@ -70,7 +70,8 @@ const v1State = {
   await page.waitForSelector('#cform');
   const sum = await page.textContent('.kv');
   console.log('   ringkasan Hafiz:', sum.replace(/\s+/g, ' ').slice(0, 160));
-  ok(/Muda/.test(sum), 'Hafiz dalam kumpulan Muda');
+  ok(/CX \(26–35\), 26 tahun/.test(sum), 'Hafiz (26) dalam CX selepas had umur ikut Category Excel');
+  ok(String(S2.settings.ageBounds) === '26,36,46,56' && S2.settings.boundsV2, 'had umur lama dipindah ke 26/36/46/56');
   ok(errors.length === 0, 'tiada ralat: ' + errors.join(' | '));
   await browser.close();
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED');

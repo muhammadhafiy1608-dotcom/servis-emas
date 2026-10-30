@@ -1,49 +1,55 @@
-/* Servis Emas — gaya. Konsep: songket (ungu tua + benang emas), jongkong emas sebagai penunjuk kemajuan. */
+/* Servis Emas — gaya. Konsep: maroon + emas (keluarga PG2U), jongkong emas sebagai penunjuk kemajuan.
+   Nama token --plum-* dikekalkan untuk keserasian; kini bernilai maroon. */
 :root {
-  --plum-900: #2E0F24;
-  --plum-800: #43173A;
-  --plum-700: #5A2050;
-  --bg: #F5F1F3;
+  --plum-900: #2A0507;
+  --plum-800: #5E0A0F;
+  --plum-700: #7A1218;
+  --brand: #B3121B;
+  --brand-press: #8F0E15;
+  --bg: #FBF8F3;
   --surface: #FFFFFF;
-  --surface-2: #FAF7F8;
-  --ink: #2B1B26;
-  --ink-2: #4A3743;
-  --muted: #6E5B67;
-  --line: #E6DCE2;
-  --line-strong: #D3C4CD;
-  --gold: #C99A2E;
-  --gold-hi: #EBCB6A;
-  --gold-lo: #A47619;
-  --gold-ink: #8A6416;
-  --gold-soft: #F6ECD6;
-  --hero-ink: #FBF1DF;
-  --hero-sub: #E3BE5C;
+  --surface-2: #FCFAF6;
+  --ink: #1C1917;
+  --ink-2: #44403C;
+  --muted: #57534E;
+  --line: #E7E0D3;
+  --line-strong: #D8CDB9;
+  --gold: #C9A227;
+  --gold-hi: #E8CF7A;
+  --gold-lo: #A47F15;
+  --gold-ink: #7E6110;
+  --gold-soft: #F6EDD3;
+  --hero-ink: #FFF8EC;
+  --hero-sub: #E8CF7A;
   --send: #0F7B5F;
   --send-press: #0B654E;
   --danger: #B42318;
-  --danger-soft: #FCEBE9;
-  --ok: #0F7B5F;
-  --ok-soft: #E2F3EC;
+  --danger-soft: #FEF3F2;
+  --ok: #067647;
+  --ok-soft: #ECFDF3;
   --bubble: #DDF7D4;
   --bubble-ink: #14261B;
   --ingot-a: #FBF3DF;
   --ingot-b: #EEDDB0;
   --notch-off: rgba(150, 112, 34, .13);
 
-  /* Kumpulan umur — susunan berperingkat emas → ungu */
+  /* Kumpulan umur — susunan berperingkat emas → maroon */
   --g-muda: #D4A537;      --g-muda-soft: #FAF0D7;      --g-muda-ink: #6F520D;
   --g-dewasa: #B9822B;    --g-dewasa-soft: #F5E6D0;    --g-dewasa-ink: #6A4611;
-  --g-pertengahan: #93572F; --g-pertengahan-soft: #F1E1D7; --g-pertengahan-ink: #64361A;
-  --g-matang: #713848;    --g-matang-soft: #EEDDE3;    --g-matang-ink: #572535;
-  --g-warga: #4C1D3D;     --g-warga-soft: #EADDE6;     --g-warga-ink: #3F1733;
-  --g-none: #9A8C95;      --g-none-soft: #EEE9EC;      --g-none-ink: #574B53;
+  --g-pertengahan: #9A5A2C; --g-pertengahan-soft: #F3E3D6; --g-pertengahan-ink: #64361A;
+  --g-matang: #8E2A24;    --g-matang-soft: #F5E0DC;    --g-matang-ink: #6A1B16;
+  --g-warga: #5E0A0F;     --g-warga-soft: #F1DCDC;     --g-warga-ink: #4A080C;
+  --g-none: #9C9389;      --g-none-soft: #EFEBE5;      --g-none-ink: #57534E;
 
   /* Kategori mesej */
-  --c-emas: #C99A2E; --c-kewangan: #1E6F6A; --c-kehidupan: #A3456B; --c-pengumuman: #55606E;
+  --c-emas: #C9A227; --c-kewangan: #1E6F6A; --c-kehidupan: #A3456B; --c-pengumuman: #55606E;
 
   --r-lg: 20px; --r: 14px; --r-sm: 10px;
-  --shadow: 0 1px 0 rgba(46, 15, 36, .03), 0 8px 22px -14px rgba(46, 15, 36, .35);
+  --shadow: 0 1px 0 rgba(42, 5, 7, .03), 0 8px 22px -14px rgba(42, 5, 7, .35);
   --font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --hero-bg: linear-gradient(165deg, #6E1016 0%, #4A080C 55%, #2A0507 100%);
+  --btn-gold: linear-gradient(180deg, #E8CF7A, #C9A227);
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --tabs-h: 64px;
@@ -52,20 +58,22 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --plum-900: #1E0917; --plum-800: #5A2050; --plum-700: #6E2A62;
-    --bg: #160C13; --surface: #21141D; --surface-2: #281923;
-    --ink: #F5EBF1; --ink-2: #E2D2DC; --muted: #B7A3B0; --line: #39272F; --line-strong: #4B3542;
-    --gold-ink: #EBCB6A; --gold-soft: #33270F;
+    --plum-900: #1A0304; --plum-800: #7A1218; --plum-700: #8E1A20;
+    --brand: #D6333B; --brand-press: #B3121B;
+    --bg: #130B0A; --surface: #1E1412; --surface-2: #251916;
+    --ink: #F7EFE6; --ink-2: #E5D8CC; --muted: #B9AA9C; --line: #3A2B26; --line-strong: #4D3A33;
+    --gold-ink: #E8CF7A; --gold-soft: #33270F;
     --send: #13926F; --send-press: #0F7B5F;
     --danger: #F2766B; --danger-soft: #3A1916; --ok: #3FC79B; --ok-soft: #12332A;
     --bubble: #1D3A2B; --bubble-ink: #E6F5EA;
-    --ingot-a: #4A3A16; --ingot-b: #3A2C0E; --notch-off: rgba(235, 203, 106, .16);
+    --ingot-a: #4A3A16; --ingot-b: #3A2C0E; --notch-off: rgba(232, 207, 122, .16);
     --g-muda-soft: #3A2E10; --g-muda-ink: #F0CE6E;
     --g-dewasa-soft: #3A2A12; --g-dewasa-ink: #E9B66A;
     --g-pertengahan-soft: #3A2318; --g-pertengahan-ink: #E5A27A;
-    --g-matang-soft: #3A1E27; --g-matang-ink: #E7A0B4;
-    --g-warga-soft: #331A2C; --g-warga-ink: #DCA6CC;
-    --g-none-soft: #2D242A; --g-none-ink: #C9BBC4;
+    --g-matang-soft: #3A1A17; --g-matang-ink: #F0A096;
+    --g-warga-soft: #351216; --g-warga-ink: #F2A7A9;
+    --g-none-soft: #2B2421; --g-none-ink: #CBBFB4;
+    --hero-bg: linear-gradient(165deg, #4A080C 0%, #2A0507 60%, #1A0304 100%);
     --shadow: 0 1px 0 rgba(0, 0, 0, .2), 0 10px 24px -14px rgba(0, 0, 0, .7);
     color-scheme: dark;
   }
@@ -422,3 +430,45 @@ table.prev th { color: var(--muted); font-weight: 700; }
 .setlist li b { font-variant-numeric: tabular-nums; flex: none; }
 .setlist li b::after { content: ' mesej'; font-weight: 500; color: var(--muted); font-size: 13px; }
 .sets + .filter-row { margin-top: 4px; }
+
+/* ---------- Gaya PG2U: tajuk serif, butang kapsul, cincin emas ---------- */
+.tb-hero { background: var(--hero-bg); }
+.hero-date { display: flex; align-items: center; gap: 10px; text-transform: uppercase; letter-spacing: .14em; font-size: 12px; font-weight: 800; }
+.hero-date::before { content: ''; width: 28px; height: 2px; border-radius: 2px; background: var(--gold); flex: none; }
+.hero h1, .tb-bar h1, .focus-name, .finish h2, .sheet h3, .big-num { font-family: var(--serif); font-weight: 600; letter-spacing: -.01em; }
+.hero h1 { font-size: 34px; }
+.tb-bar h1 { font-size: 21px; }
+.focus-name { font-size: 27px; }
+.btn, .btn.sm, .btn.big, .tb-action, .fchip, .toggles button, .fab { border-radius: 999px; }
+.btn.primary { background: var(--brand); border-color: var(--brand); box-shadow: 0 10px 22px -12px color-mix(in srgb, var(--brand) 80%, transparent); }
+.btn.primary:active { background: var(--brand-press); }
+.btn.send { box-shadow: 0 10px 22px -12px color-mix(in srgb, var(--send) 80%, transparent); }
+.session.is-now .btn.primary { background: var(--btn-gold); border-color: var(--gold); color: #2A0507; box-shadow: 0 10px 22px -10px rgba(201, 162, 39, .7); }
+.fab { background: var(--brand); box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--brand) 70%, transparent); }
+.fchip[aria-pressed="true"], .toggles button[aria-pressed="true"] { background: var(--plum-800); border-color: var(--plum-800); }
+.field input:not([type="checkbox"]), .field select, .field textarea, .search input, .map-row select,
+.slot input[type="text"], .slot input[type="time"], .slot input[type="number"], .bounds input { border-radius: 14px; transition: border-color .15s, box-shadow .15s; }
+.field input:not([type="checkbox"]):focus, .field select:focus, .field textarea:focus, .search input:focus, .map-row select:focus,
+.slot input:focus, .bounds input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 4px var(--gold-soft); }
+.card h2 { letter-spacing: -.005em; }
+.steps li::before { border-radius: 10px; background: var(--btn-gold); color: #2A0507; }
+.count-pill { background: var(--btn-gold); color: #2A0507; }
+.linkish { color: var(--brand); }
+#tabs a[aria-current="page"] { color: var(--brand); }
+.seg a[aria-current="page"] { box-shadow: 0 1px 3px rgba(42, 5, 7, .15); }
+.toast { background: var(--plum-900); }
+.sheet-backdrop { background: rgba(26, 3, 4, .5); }
+
+/* Junior (bawah 18) — dipaparkan berasingan daripada MB30 */
+:root { --g-junior: #7A9A8C; --g-junior-soft: #E6F0EB; --g-junior-ink: #2F5446; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --g-junior-soft: #18302A; --g-junior-ink: #9FD3BE; } }
+[data-g="junior"] { background: var(--g-junior-soft); color: var(--g-junior-ink); }
+.dist .junior { background: var(--g-junior); }
+
+/* Skrip kategori (Mesej → Pustaka) */
+.scriptlist { list-style: none; margin: 0; padding: 0; }
+.scriptlist li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14.5px; }
+.scriptlist li:first-child { border-top: 0; }
+.scriptlist li .muted { flex: 1; }
+.scriptlist li b { font-variant-numeric: tabular-nums; }
+.chip.prospek { background: transparent; border: 1px dashed var(--brand); color: var(--brand); }

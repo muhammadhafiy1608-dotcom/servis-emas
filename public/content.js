@@ -1,4 +1,4 @@
-/* Servis Emas — pustaka kandungan lalai (versi 2).
+/* Servis Emas — pustaka kandungan lalai (versi 5: + 80 skrip ikut kategori Excel MB30/CX/CY/CZ/Pencen, Set 1 & Set 2, + 10 skrip bakal pelanggan).
  * Ilmu ringkas: emas, kewangan & kehidupan. Satu set umum untuk semua,
  * dan satu set khas untuk setiap kumpulan umur.
  * ages: [] = semua umur; atau senarai kumpulan: muda, dewasa, pertengahan, matang, warga
@@ -18,6 +18,7 @@
     'Terima kasih kerana percaya simpan emas bersama saya.', '',
     'Mulai sekarang, sekali-sekala saya kongsi *ilmu ringkas* tentang emas, kewangan & kehidupan. Pendek je, 1 minit baca.', '',
     'Tolong *save nombor saya* ya, supaya mesej sampai dengan elok. Ada soalan? Balas je terus 🤝']);
+  WELCOME.aud = 'penyimpan'; // berterima kasih kerana dah simpan emas — bukan untuk bakal pelanggan
 
   /* ======================= SET UMUM: EMAS ======================= */
   var E = [
@@ -934,6 +935,599 @@
     }
   };
 
+
+  /* ============ SKRIP IKUT KATEGORI EXCEL PEMILIK (versi 3) ============
+   * MB30 = muda, CX = dewasa, CY = pertengahan, CZ = matang, Pencen = warga. Junior ditangguh (tiada set).
+   * Ilham daripada artikel Tn Mohd Zulkifli Shafie (www.mohdzulkifli.com), ditulis semula ringkas.
+   * src = artikel rujukan. Set ini dihantar dahulu (selepas S00) kepada kumpulan masing-masing. */
+  function z(id, cat, title, src, lines, islamic) { var m = x(id, cat, title, lines, islamic); m.src = 'https://www.mohdzulkifli.com/' + src + '.html'; return m; }
+  var SKRIP = {
+    muda: [
+      z('ZA01', 'kewangan', 'Gaji – Simpan = Belanja', '2025/10/rahsia-orang-kaya-gaji-simpan-belanja-bukan-sebaliknya', [
+        '*Gaji – Simpan = Belanja* 💡', '',
+        'Ramai buat terbalik... belanja dulu, kalau ada lebih baru simpan.', '',
+        'Tapi "duit lebih" tu jarang muncul.', '',
+        'Dapat gaji, *potong dulu bahagian simpanan*. Baki tu baru untuk belanja.']),
+      z('ZA02', 'emas', 'Fokus gram, bukan harga', '2026/04/strategi-simpan-emas-yang-betul-fokus-gram-bukan-harga', [
+        '*Fokus gram, bukan harga* ⚖️', '',
+        'Ramai sibuk tengok harga hari-hari... beli, jual, beli lagi.', '',
+        'Tapi yang buat kita kaya dengan emas ialah *berapa gram yang terkumpul*.', '',
+        'Harga turun? Duit yang sama dapat lebih gram.']),
+      z('ZA03', 'kewangan', 'Gaji kecil? Paksa simpan', '2026/05/macam-mana-nak-menabung-kalau-gaji-tak-cukup', [
+        '*Gaji kecil, macam mana nak simpan?* 🤔', '',
+        'Jawapannya: *paksa*.', '',
+        'Setiap kali gaji masuk, asingkan sekurang-kurangnya 10% dulu. Terpaksa korek balik pun tak apa...', '',
+        'Tapi yang menyimpan, korek dengan berat hati. Yang tak menyimpan, habis tanpa sedar.']),
+      z('ZA04', 'kehidupan', 'Nak gaji tinggi?', '2024/11/nak-gaji-tinggi-ini-yang-graduan-kena-faham-dan-buat-persediaan', [
+        '*Nak gaji tinggi?* 🎓', '',
+        'Majikan tak bayar mahal hanya sebab segulung ijazah...', '',
+        'Mereka bayar ikut *nilai* yang kita bawa.', '',
+        'Jadi labur pada diri: skill, sikap, ilmu. Bila nilai naik, rezeki pun ikut naik. InsyaAllah.']),
+      z('ZA05', 'emas', 'Mula kecil, tapi konsisten', '2026/01/simpan-emas-sedikit-tapi-konsisten-lama-lama-menjadi-bukit', [
+        '*Mula kecil pun tak apa* 🪙', '',
+        'Simpan duit dalam akaun... awal bulan simpan, hujung bulan korek balik.', '',
+        'Simpan emas sikit-sikit melalui Akaun Emas GAP, lama-lama *jadi bukit*.', '',
+        'Bukan soal banyak mana bulan ni. Tapi konsisten bulan-bulan.']),
+      z('ZA06', 'kewangan', 'Gaji pertama terus loan kereta?', '2025/04/gopoh-beli-kereta-dan-rumah-punca-kewangan-tercekik-di-usia-muda', [
+        '*Gaji pertama, terus loan kereta?* 🚗', '',
+        'Ramai yang muda-muda lagi kewangan dah tercekik... kerja semata-mata nak bayar hutang.', '',
+        'Susun semula: *simpanan kecemasan dulu*, simpan emas sikit-sikit, baru pilih kereta yang betul-betul mampu.']),
+      z('ZA07', 'kewangan', 'Tahan gaya hidup, bukan sara hidup', '2025/09/nak-cepat-kaya-tahan-kos-gaya-hidup-bukan-sara-hidup', [
+        '*Yang keringkan poket bukan nasi lemak* 🍛', '',
+        'Bila sesak, kita potong duit makan dulu.', '',
+        'Tapi selalunya yang "tarah" gaji ialah *kos gaya hidup*: ansuran kereta, pay later, gajet baru.', '',
+        'Tahan gaya hidup... bukan sara hidup.']),
+      z('ZA08', 'kehidupan', 'Tanda sebenar kaya', '2026/06/tanda-sebenar-kaya-mampu-tunai-haji-di-usia-muda', [
+        '*Tanda sebenar kaya?* 🕋', '',
+        'Bukan kereta mewah... kereta boleh ambil loan.', '',
+        'Tapi haji kena bayar *tunai*.', '',
+        'Ada anak muda umur 20-an dah mampu ke Tanah Suci. Mula simpan dari sekarang, sikit-sikit. InsyaAllah dipermudahkan.'], true),
+      // --- Set 2: dihantar selepas Set 1 habis ---
+      z('ZA09', 'kewangan', "RM200: kecil atau besar?", '2024/10/bila-menabung-kita-lebih-hargai-duit-hasil-titik-peluh-kita', [
+        "*RM200: kecil atau besar?* 💸",
+        "",
+        "Bila berbelanja, RM200 rasa kecil sangat.",
+        "",
+        "Tapi bila menabung... RM200 tu rasa besar, dan kita jadi sayang nak habiskan.",
+        "",
+        "Cuba cari *duit tambahan* sikit setiap bulan, dan terus masukkan ke tabungan."]),
+      z('ZA10', 'kehidupan', "Berdikari dari muda", '2024/10/anak-muda-belajarlah-sampai-degree-dan-cepatlah-berdikari', [
+        "*Apa majikan cari pada anak muda?* 🧠",
+        "",
+        "Bukan sekadar sijil... tapi cara berfikir dan selesaikan masalah.",
+        "",
+        "Satu lagi: *berdikari*. Urus duit sendiri, tanggung diri sendiri.",
+        "",
+        "Mula sekarang. Skill berdikari ni yang bawa kita jauh."]),
+      z('ZA11', 'kewangan', "Penat sekarang, senang kemudian", '2025/05/sabar-kerja-kuat-10-tahun-enjoy-life-30-tahun', [
+        "*Penat sekarang, senang kemudian* 🔋",
+        "",
+        "Masa muda, tenaga banyak, komitmen sikit.",
+        "",
+        "Inilah masa terbaik untuk kerja kuat, belajar dan menyimpan bersungguh-sungguh.",
+        "",
+        "Sabar beberapa tahun... supaya nanti kita boleh *pilih* hidup yang kita mahu."]),
+      z('ZA12', 'emas', "Simpan emas untuk apa?", '2026/06/bagaimana-emas-bantu-capai-target-kewangan-lebih-cepat', [
+        "*Simpan emas untuk apa?* 🎯",
+        "",
+        "Kalau sekadar nak untung... lepas untung, habiskan, kosong balik.",
+        "",
+        "Letak *target* yang jelas: dana kecemasan, kahwin, rumah, haji.",
+        "",
+        "Bila ada target, setiap gram ada tujuan."]),
+      z('ZA13', 'kewangan', "Menabung dulu, baru beli", '2024/12/ambil-mudah-dengan-hutang-punca-hidup-semakin-keras', [
+        "*Menabung dulu, atau hutang dulu?* 🛒",
+        "",
+        "Kalau belum mampu beli tunai, maksudnya kita belum mampu.",
+        "",
+        "Bila menabung dulu baru beli, kita lebih *berfikir*... sayang nak habiskan.",
+        "",
+        "Biasakan dari muda: kumpul dulu, baru beli."]),
+      z('ZA14', 'emas', "Kenapa emas 1 gram caj lebih?", '2025/04/inilah-sebab-kenapa-caj-premium-emas-1-gram-lebih-mahal', [
+        "*Kenapa emas 1 gram caj lebih?* 🔎",
+        "",
+        "Keping kecil perlu ditimbang dan dikikis berkali-kali sampai beratnya tepat.",
+        "",
+        "Sebab tu kos buatan per gram lebih tinggi.",
+        "",
+        "Mula dengan kecil tak apa... bila simpanan dah besar, pertimbangkan *keping lebih besar*."]),
+      z('ZA15', 'kehidupan', "Ada dealer untuk bantu", '2025/01/kerugian-daftar-public-gold-tanpa-introducer-dealer-terlatih', [
+        "*Ada masalah akaun emas?* 🙋",
+        "",
+        "Jangan pening sorang-sorang.",
+        "",
+        "Itulah gunanya ada *dealer* yang membimbing: tanya bila keliru, minta bantu bila ada masalah transaksi.",
+        "",
+        "Simpan nombor saya, WhatsApp je bila perlu."]),
+      z('ZA16', 'kewangan', "Kereta untuk siapa?", '2025/08/beli-kereta-nak-nampak-hebat-atau-nak-hati-tenang', [
+        "*Kereta untuk siapa?* 🚘",
+        "",
+        "Ramai beli kereta lebih besar daripada keperluan... sebab nak nampak berjaya.",
+        "",
+        "Tapi ansurannya kita yang tanggung, bertahun-tahun.",
+        "",
+        "Beli yang *cukup untuk keperluan*. Duit yang selamat, simpan. Itulah jalan bebas hutang awal."])
+    ],
+    dewasa: [
+      z('ZB01', 'kewangan', 'Simpanan 3 bulan gaji', '2026/06/teknik-berkesan-menabung-3-bulan-gaji-sebagai-dana-kecemasan', [
+        '*Dah ada simpanan 3 bulan gaji?* 🛟', '',
+        'Ramai dah kerja bertahun-tahun... simpanan sebulan gaji pun belum ada.', '',
+        'Sasaran pertama setiap kita: *3 bulan gaji* untuk kecemasan.', '',
+        'Asingkan sedikit setiap bulan, sampai cukup. Baru tenang hadapi apa-apa.']),
+      z('ZB02', 'emas', 'Bajet besar, beli sekaligus?', '2026/03/jangan-beli-emas-bajet-besar-sekaligus-beli-sikit-sikit-tapi-konsisten', [
+        '*Ada bajet besar, terus beli sekaligus?* 🤲', '',
+        'Kalau harga turun lepas tu, hati jadi tak tenang.', '',
+        'Lebih selamat: pecahkan bajet, *beli sikit-sikit tapi konsisten*. Purata harga jadi seimbang, hati pun tenang.']),
+      z('ZB03', 'kewangan', 'Gaji naik, hutang naik?', '2026/01/gaji-naik-hutang-pun-naik-itu-bukan-makin-kaya-tapi-masuk-jerat', [
+        '*Gaji naik, hutang pun naik?* 📈', '',
+        'Kereta baru, phone baru, gaya hidup naik sekali...', '',
+        'Itu bukan makin kaya. Itu makin terjerat.', '',
+        'Bila gaji naik, naikkan dulu *simpanan*. Contohnya, separuh kenaikan terus masuk tabungan emas.']),
+      z('ZB04', 'kehidupan', 'Tinggal dekat tempat kerja', '2026/02/tak-berbaloi-beli-rumah-jauh-dari-tempat-kerja-menyewa-saja-dulu', [
+        '*Beli rumah jauh, hidup atas jalan?* 🏠', '',
+        'Rumah sendiri, tapi berjam-jam sehari dalam jem... duit habis, tenaga habis.', '',
+        'Prinsip yang bagus: *tinggal dekat tempat kerja*. Kalau perlu, sewa dulu. Fokus naikkan kerjaya dan simpanan.']),
+      z('ZB05', 'emas', 'Akaun GAP untuk apa?', '2026/03/risiko-akaun-gap-emas-terbaik-emas-di-tangan-kita-sendiri', [
+        '*Akaun GAP tu untuk apa?* 💳', '',
+        'GAP sebenarnya *cara beli* emas sikit-sikit.', '',
+        'Matlamat akhirnya: emas fizikal di tangan kita sendiri.', '',
+        'Bila baki dah cukup, tukar kepada emas fizikal dan simpan elok-elok.']),
+      z('ZB06', 'kehidupan', 'Kaya lain, mewah lain', '2026/02/kaya-lain-mewah-lain-ramai-nampak-mewah-tapi-tak-kaya', [
+        '*Kaya lain, mewah lain* 🚙', '',
+        'Dua orang pakai kereta sama. Seorang loan 9 tahun, gaji habis bayar ansuran. Seorang lagi beli tunai.', '',
+        'Dari luar nampak sama... Tapi seorang terikat, seorang *bebas*.']),
+      z('ZB07', 'kewangan', 'Rumah besar, kos besar', '2025/09/rumah-duduk-sendiri-bukan-harta-aset-tapi-beban-liabiliti', [
+        '*Rumah besar = kos besar* 🏡', '',
+        'Rumah duduk sendiri tak bayar kita setiap bulan... kitalah yang bayar dia: ansuran, bil, maintenance.', '',
+        'Beli ikut keperluan, bukan ikut gaya. Baki duit tu, bina *simpanan yang menjaga nilai*.']),
+      z('ZB08', 'kewangan', 'Pencen bukan soal umur', '2026/01/pencen-bukan-tentang-umur-tapi-kedudukan-kewangan', [
+        '*Pencen bukan soal umur* ⏳', '',
+        'Kita boleh "pencen" bila harta dah mampu tanggung hidup... walaupun tak pergi kerja.', '',
+        'Ada yang capai umur 40-an. Ada yang umur 60 pun belum.', '',
+        'Bezanya bermula sekarang: *simpan dulu, belanja kemudian*.']),
+      // --- Set 2: dihantar selepas Set 1 habis ---
+      z('ZB09', 'emas', "GAP atau ansuran?", '2024/11/belian-emas-secara-epp-dan-akaun-gap-mana-lebih-baik', [
+        "*Beli emas secara ansuran?* 📝",
+        "",
+        "Kalau tak mampu habiskan bayaran, boleh kena caj penalti.",
+        "",
+        "Lebih tenang guna *Akaun Emas GAP*: masukkan ikut kemampuan, gram bertambah sedikit demi sedikit, tanpa komitmen tetap."]),
+      z('ZB10', 'kewangan', "Jangan belanja duit yang belum dapat", '2026/04/nak-hidup-bebas-jangan-sesekali-belanjakan-duit-yang-kita-belum-dapat', [
+        "*Jangan belanja duit yang belum dapat* ⛓️",
+        "",
+        "Kad kredit, pay later, loan peribadi... semuanya belanja duit masa depan.",
+        "",
+        "Hidup biasa-biasa tanpa hutang lebih *bebas* daripada hidup mewah yang terikat.",
+        "",
+        "Pilih bebas."]),
+      z('ZB11', 'kewangan', "Kos bela, bukan kos beli", '2024/10/sebelum-beli-kereta-mewah-milikilah-harta-rm1-juta-dulu', [
+        "*Harga kereta bukan setakat harga beli* 🔧",
+        "",
+        "Ada kos bela: insurans, cukai jalan, servis, tayar, minyak... dan keuntungan bank.",
+        "",
+        "Sebelum upgrade, kira *kos bela* sekali. Kalau ia makan simpanan bulanan, tangguh dulu."]),
+      z('ZB12', 'kehidupan', "Rumah semak, poket kosong", '2024/12/rumah-semak-poket-kosong-stop-beli-sampah-balik-ke-rumah', [
+        "*Rumah semak, poket kosong* 📦",
+        "",
+        "Barang yang jarang guna... memenuhkan rumah, mengosongkan poket.",
+        "",
+        "Sebelum beli, tanya: *betul-betul perlu?* Kalau tak, duit tu lebih baik jadi beberapa gram emas."]),
+      z('ZB13', 'kehidupan', "Pasangan pun perlu simpanan", '2024/12/suri-rumah-yang-ada-duit-sendiri-akan-lebih-yakin-dan-bahagia', [
+        "*Pasangan pun perlu simpanan sendiri* 💞",
+        "",
+        "Ramai yang korbankan kerjaya demi keluarga...",
+        "",
+        "Ada simpanan sendiri, walaupun kecil, buat seseorang lebih *yakin dan tenang*.",
+        "",
+        "Buka akaun emas untuk pasangan juga. Sikit-sikit pun jadi."]),
+      z('ZB14', 'emas', "Emas di tangan, hati tenang", '2026/02/bila-emas-ada-di-tangan-kita-tak-rasa-rugi-bila-harga-jatuh', [
+        "*Kenapa penyimpan emas fizikal tenang?* 🤲",
+        "",
+        "Emas di tangan tak hilang bila harga turun... beratnya tetap sama.",
+        "",
+        "Rugi hanya bila kita *jual* masa harga rendah.",
+        "",
+        "Kalau simpan untuk jangka panjang, turun naik harga cuma cerita sementara."]),
+      z('ZB15', 'emas', "Ukur dengan emas", '2025/09/gaji-fresh-grad-rm16000-kalau-dibayar-dengan-emas', [
+        "*Gaji naik, tapi rasa makin sempit?* 🧮",
+        "",
+        "Sebab nilai duit kertas makin susut.",
+        "",
+        "Cuba ukur dengan emas: harga rumah dan barang, kalau dikira dalam gram, ramai dapati *tak naik banyak* pun.",
+        "",
+        "Sebab tu kita simpan sebahagian gaji dalam emas."]),
+      z('ZB16', 'kehidupan', "Ada duit lebih, ke mana dulu?", '2026/02/bila-duit-ada-ke-mana-patut-kita-pergi-dahulu', [
+        "*Ada duit lebih, nak ke mana dulu?* ✈️",
+        "",
+        "Melancong memang seronok...",
+        "",
+        "Tapi bagi yang mampu, *haji dan umrah* patut didahulukan. Itu rukun Islam.",
+        "",
+        "Susun tabungan: dana ibadah dulu, baru percutian."], true)
+    ],
+    pertengahan: [
+      z('ZC01', 'kewangan', 'Umur 40-an: fasa berisiko', '2024/09/masalah-kewangan-usia-40-an-buat-perkara-ini-sebelum-terlambat', [
+        '*Umur 40-an: fasa paling berisiko* ⚠️', '',
+        'Komitmen paling tinggi... anak sekolah, rumah, kereta, ibu bapa.', '',
+        'Kalau hilang kerja, peluang baru tak semudah dulu.', '',
+        'Pastikan ada *simpanan kecemasan* dan kurangkan hutang dari sekarang.']),
+      z('ZC02', 'emas', 'Sasaran 1 kilogram 1 keluarga', '2026/03/fokus-capai-1-kilogram-1-keluarga-harga-naik-senyum-harga-turun-lagi-senyum', [
+        '*Sasaran keluarga: 1 kilogram* 🎯', '',
+        'Penyimpan emas tegar tak pening sangat dengan harga hari ini.', '',
+        'Yang dia kira: *berapa gram dah terkumpul?*', '',
+        'Letak sasaran jangka panjang untuk keluarga. Tambah sedikit setiap bulan... sampai capai.']),
+      z('ZC03', 'kewangan', 'Selesai hutang: betulkan punca', '2026/09/nak-selesai-hutang-jangan-fokus-pada-hutang-tapi-fokus-punca-sebenarnya', [
+        '*Nak selesai hutang?* 🔍', '',
+        'Bayar hutang saja tak cukup kalau punca dia masih ada.', '',
+        'Tanya diri: kenapa hutang ni datang? Gaya hidup? Tiada simpanan kecemasan?', '',
+        'Betulkan *punca*, barulah hutang tak datang balik.']),
+      z('ZC04', 'kehidupan', 'Emas untuk dana haji', '2026/02/simpan-emas-100-gram-seorang-sebagai-dana-haji', [
+        '*Simpan emas untuk haji* 🕋', '',
+        'Bila dapat panggilan haji, bayaran perlu dibuat dalam masa singkat.', '',
+        'Ada yang simpan *satu gold bar 100 gram seorang* khas untuk haji. Bila tiba giliran, terus jual dan langsaikan.', '',
+        'Mula kumpul dari sekarang. InsyaAllah.'], true),
+      z('ZC05', 'emas', 'Harga turun, penyimpan senyum', '2026/02/rahsia-penyimpan-emas-lama-kekal-tenang-tapi-makin-kaya', [
+        '*Harga emas turun?* 🙂', '',
+        'Pelabur panik. Tapi penyimpan emas... senyum.', '',
+        'Sebab kita bukan nak jual bulan depan. Harga turun bermakna duit yang sama dapat *lebih banyak gram*.', '',
+        'Jadi gold saver, bukan gold investor.']),
+      z('ZC06', 'kehidupan', 'Tanya anak: kenapa sekolah?', '2026/08/big-why-kenapa-anak-anak-pergi-sekolah', [
+        '*Tanya anak: kenapa pergi sekolah?* 🎒', '',
+        'Jawapan mereka kadang-kadang buat kita terdiam...', '',
+        'Ajak anak berfikir *kenapa* mereka belajar dan menyimpan. Bila faham sebabnya, mereka buat dengan rela, bukan terpaksa.', '',
+        'Didikan duit bermula di rumah.']),
+      z('ZC07', 'kehidupan', 'Umur 40, teruskan cari rezeki', '2025/09/umur-40-bukan-masa-berhenti-cari-rezeki-tapi-tambah-makna-dalam-rezeki', [
+        '*Umur 40, berhenti kejar rezeki?* 🌱', '',
+        'Ramai sahabat Nabi s.a.w. kaya... dan sangat pemurah.', '',
+        'Harta bukan penghalang ke syurga. Malah boleh jadi jalan, bila dicari dengan halal dan dikongsi.', '',
+        'Teruskan usaha. Tambah *makna* dalam rezeki kita.'], true),
+      z('ZC08', 'kewangan', 'Kawan nak pinjam duit?', '2025/04/supaya-tak-rugi-jangan-beri-pinjam-duit-tapi-pinjamkan-emas', [
+        '*Kawan nak pinjam duit?* 🤝', '',
+        'Niat nak tolong... tapi berapa ramai yang akhirnya tak bayar, sampai putus kawan.', '',
+        'Jangan korek *simpanan kecemasan* untuk beri pinjam.', '',
+        'Kalau nak tolong, ikut kemampuan... dan niatkan sedekah.']),
+      // --- Set 2: dihantar selepas Set 1 habis ---
+      z('ZC09', 'kewangan', "Serius nak bebas hutang?", '2025/04/siapa-serius-nak-bebas-hutang-tuhan-akan-memudahkannya', [
+        "*Serius nak bebas hutang?* 🗝️",
+        "",
+        "Jangan lari daripada hutang... masalah akan jadi berganda.",
+        "",
+        "Hadapi: senaraikan semua hutang, berbincang dengan pemiutang, bayar sedikit demi sedikit.",
+        "",
+        "Siapa serius berusaha, InsyaAllah Allah permudahkan jalannya."], true),
+      z('ZC10', 'kehidupan', "Biar anak rasa sedikit susah", '2025/01/beri-peluang-anak-belajar-susah-supaya-dia-lebih-kuat', [
+        "*Biar anak rasa sedikit susah* 🚌",
+        "",
+        "Bukan sebab kedekut... tapi supaya mereka tahu nilai duit.",
+        "",
+        "Naik pengangkutan awam, bawa bekal, kumpul duit sendiri untuk benda yang mereka mahu.",
+        "",
+        "Anak yang biasa berjimat, *lebih kuat* bila dewasa."]),
+      z('ZC11', 'kehidupan', "Anak bertambah, rezeki bertambah", '2016/04/kita-menumpang-rezeki-anak-anak', [
+        "*Anak bertambah, rezeki pun bertambah* 👶",
+        "",
+        "Setiap anak datang dengan rezeki masing-masing.",
+        "",
+        "Tapi rezeki perlu *diurus*: buat bajet baru setiap kali keluarga bertambah, dan teruskan menyimpan walaupun sedikit.",
+        "",
+        "Tawakal dan tadbir, berjalan seiring."], true),
+      z('ZC12', 'emas', "Simpanan besar, keping besar", '2026/02/kenapa-gold-bar-1-kilogram-lebih-untung-berbanding-100-keping-10-gram', [
+        "*Simpanan dah besar?* 🧱",
+        "",
+        "Keping kecil sesuai untuk mula dan untuk kecemasan.",
+        "",
+        "Tapi bila simpanan dah besar, *keping besar* biasanya lebih jimat: kos buatan per gram lebih rendah, urusan pos pun lebih sedikit.",
+        "",
+        "Susun ikut tujuan."]),
+      z('ZC13', 'emas', "Harga paling tinggi?", '2026/01/harga-emas-all-time-high-investor-panik-gold-saver-kekal-tenang', [
+        "*Harga emas paling tinggi?* 📊",
+        "",
+        "Ada yang teruja, ada yang panik, ada yang menyesal.",
+        "",
+        "Penyimpan emas? Teruskan *jumlah yang sama* setiap bulan. Harga tinggi dapat gram sikit, harga rendah dapat lebih.",
+        "",
+        "Konsisten mengalahkan ramalan."]),
+      z('ZC14', 'kehidupan', "Dua waktu emas bersama keluarga", '2025/06/makan-bersama-ibadah-bersama-kunci-bahagia-bersama-keluarga', [
+        "*Dua waktu emas bersama keluarga* 🍽️",
+        "",
+        "Waktu makan dan waktu ibadah.",
+        "",
+        "Letak phone ke tepi... sembang, dengar cerita anak-anak.",
+        "",
+        "Harta kita kumpul untuk keluarga. Jangan sampai kita *hilang masa* bersama mereka."], true),
+      z('ZC15', 'emas', "Emas beri income bulanan?", '2024/11/fahami-7-perkara-asas-ini-sebelum-memulakan-tabungan-emas', [
+        "*Emas beri income bulanan?* ⚠️",
+        "",
+        "Emas fizikal *tak bayar dividen* macam ASB atau Tabung Haji.",
+        "",
+        "Kalau ada yang tawar \"simpan emas, dapat pulangan bulan-bulan\"... berhati-hati. Itu tanda skim cepat kaya bertopengkan emas."]),
+      z('ZC16', 'kewangan', "Rumah impian atau beban?", '2024/12/rumah-impian-akhirnya-kena-jual-bila-ia-jadi-beban', [
+        "*Rumah impian... atau beban impian?* 🏰",
+        "",
+        "Ada yang bina rumah besar, akhirnya terpaksa jual sebab kos terlalu tinggi.",
+        "",
+        "Sebelum habiskan simpanan, tanya: siapa akan duduk 10 tahun lagi? Mampu ke tanggung *kos jaga*?"])
+    ],
+    matang: [
+      z('ZD01', 'kewangan', 'Semak 3 perkara setiap tahun', '2025/01/elak-bersara-miskin-masa-semakin-singkat-mulakan-azam-baru', [
+        '*Lepas bersara, hidup masih panjang* ⏳', '',
+        'Mungkin 15 hingga 20 tahun... tanpa gaji bulanan.', '',
+        'Setiap tahun, semak 3 perkara: *simpanan bertambah? harta bertambah? hutang berkurang?*', '',
+        'Kalau ya, kita di landasan yang betul.']),
+      z('ZD02', 'kewangan', 'Kaya bukan ikut besar gaji', '2025/07/kekayaan-bukan-jumlah-gaji-tapi-berapa-lama-mampu-bertahan-bila-tiada-lagi-gaji', [
+        '*Kaya bukan ikut besar gaji* 💼', '',
+        'Kaya sebenar: *berapa lama kita boleh bertahan bila gaji dah tiada*.', '',
+        'Cuba kira... kalau gaji berhenti esok, simpanan kita cukup untuk berapa bulan?', '',
+        'Jawapan tu yang perlu kita besarkan.']),
+      z('ZD03', 'emas', 'Kecil banyak atau besar seketul?', '2024/12/tip-pilih-item-emas-terbaik-kecil-banyak-atau-besar-seketul', [
+        '*Kecil banyak atau besar seketul?* 🧱', '',
+        'Untuk kecemasan dan pusaka: *keping kecil* lebih mudah dijual sikit-sikit, dan mudah dibahagi kepada waris.', '',
+        'Untuk tujuan besar sekaligus, contohnya haji, keping besar lebih sesuai.', '',
+        'Pilih ikut tujuan.']),
+      z('ZD04', 'kewangan', 'Jangan "tarah" harta', '2026/02/tarah-harta-penat-kerja-30-tahun-akhirnya-terpaksa-bersara-miskin', [
+        '*Jangan "tarah" harta* ⛏️', '',
+        'Dapat duit, habiskan. Untung sikit, habiskan lagi...', '',
+        'Lepas 30 tahun kerja, harta tak bertambah.', '',
+        'Biasakan: setiap kali dapat duit, *sebahagian kekal sebagai harta*. Itulah yang menjaga kita masa tua.']),
+      z('ZD05', 'kehidupan', 'Langsai hutang sebelum haji', '2025/04/kena-langsaikan-hutang-dulu-sebelum-tunaikan-haji', [
+        '*Haji atau langsai hutang dulu?* 🕋', '',
+        'Hutang ialah hak orang lain yang wajib dilunaskan.', '',
+        'Susun keutamaan: langsaikan hutang, kemudian sediakan dana haji.', '',
+        'Hati pun lebih tenang bila menjadi tetamu Allah. InsyaAllah.'], true),
+      z('ZD06', 'kehidupan', 'Dokumen untuk waris', '2011/04/siapkan-wasiat-sebelum-mati', [
+        '*Dah siapkan dokumen untuk waris?* 📜', '',
+        'Lantik wasi (pentadbir harta), senaraikan harta dan hutang, dan simpan rekod emas di tempat yang waris tahu.', '',
+        'Bukan sebab nak pergi cepat... tapi supaya waris *tak susah* bila tiba masanya.']),
+      z('ZD07', 'kewangan', 'Lindungi waris daripada hutang', '2011/11/persiapkan-waris-rm1-2-juta-sebelum-mati', [
+        '*Waris tanggung hutang kita?* 🛡️', '',
+        'Ada yang pergi mengejut, tinggalkan keluarga dengan hutang besar.', '',
+        'Pastikan ada *perlindungan yang cukup* untuk lunaskan hutang dan sara keluarga... supaya simpanan emas kekal untuk mereka.']),
+      z('ZD08', 'emas', 'Tenang macam penyimpan lama', '2026/02/rahsia-penyimpan-emas-lama-kekal-tenang-tapi-makin-kaya', [
+        '*Penyimpan emas lama tak mudah panik* 😌', '',
+        'Mereka dah lalu semua: harga naik, harga jatuh, harga mendatar bertahun-tahun.', '',
+        'Rahsianya: simpan untuk *jangka panjang*, guna duit lebihan (bukan duit hutang), dan teruskan konsisten.']),
+      // --- Set 2: dihantar selepas Set 1 habis ---
+      z('ZD09', 'kewangan', "Makan gaji pun boleh pencen selesa", '2025/02/pencen-jutawan-walaupun-hanya-makan-gaji', [
+        "*Makan gaji pun boleh pencen selesa* 🧑‍💼",
+        "",
+        "Bukan semestinya perlu bisnes besar.",
+        "",
+        "Rahsianya sikap: *simpan konsisten*, elak hutang gaya hidup, dan jaga harta bertahun-tahun.",
+        "",
+        "Ilmunya biasa... yang luar biasa ialah disiplin."]),
+      z('ZD10', 'kehidupan', "Haji: sekali seumur hidup", '2026/01/korbankan-harta-demi-ibadah-haji-terbaik', [
+        "*Haji: sekali seumur hidup* 🕋",
+        "",
+        "Kalau Allah beri kemampuan, buatlah *persediaan terbaik*: kewangan cukup, badan sihat, hati tenang.",
+        "",
+        "Supaya di sana, kita boleh fokus sepenuhnya kepada ibadah."], true),
+      z('ZD11', 'emas', "Emas tak sama macam saham", '2026/03/harga-emas-jatuh-bukan-macam-saham-ia-tak-akan-jatuh-kosong', [
+        "*Emas tak sama macam saham* 🪙",
+        "",
+        "Saham boleh jatuh sampai hampir tiada nilai.",
+        "",
+        "Emas pula dah jadi penyimpan nilai sejak ribuan tahun.",
+        "",
+        "Harga turun naik... tapi *gram kita tetap*. Sebab tu penyimpan jangka panjang lebih tenang."]),
+      z('ZD12', 'emas', "Tunggu harga turun?", '2024/11/tunggu-harga-terbaik-kesilapan-biasa-penyimpan-emas', [
+        "*\"Tunggu harga turun dulu...\"* ⏱️",
+        "",
+        "Harga naik, menyesal tak beli. Harga turun, takut turun lagi... akhirnya tak beli langsung.",
+        "",
+        "Lebih baik *beli sedikit, konsisten*, dan biar masa yang bekerja."]),
+      z('ZD13', 'kehidupan', "Kenapa masih nak tambah harta?", '2024/11/sahabat-nabi-cemburu-dengan-amalan-orang-kaya', [
+        "*Kenapa masih nak tambah harta?* 🤲",
+        "",
+        "Keperluan kita mungkin dah cukup... tapi *amalan* kita belum cukup.",
+        "",
+        "Harta yang bertambah membuka lebih banyak pintu: sedekah, wakaf, bantu keluarga yang susah.",
+        "",
+        "Kaya itu mulia bagi yang bersyukur."], true),
+      z('ZD14', 'kehidupan', "Tunjuk manfaat, bukan kemewahan", '2025/08/bila-kaya-show-off-manfaat-buat-orang-lain-bukan-kemewahan', [
+        "*Bila rezeki dah luas* 🌳",
+        "",
+        "Tak perlu tunjuk rumah besar dan kereta mewah.",
+        "",
+        "Yang lebih indah untuk \"ditunjuk\"... *manfaat* kita kepada orang lain: anak saudara dibantu belajar, jiran dibantu bila susah."]),
+      z('ZD15', 'emas', "Hati-hati janji harga", '2026/03/nak-elak-kerugian-jangan-percaya-ejen-jangan-beli-emas-tanpa-ilmu', [
+        "*\"Harga emas confirm naik sampai…\"* 🔮",
+        "",
+        "Hati-hati dengan sesiapa yang janji harga, termasuk ejen.",
+        "",
+        "Tiada siapa tahu harga esok.",
+        "",
+        "Belajar asas dulu, simpan ikut kemampuan, dan buat keputusan dengan *ilmu*."]),
+      z('ZD16', 'kehidupan', "Kaya bermula dari diri", '2025/07/kekayaan-bukan-tentang-membina-poket-tapi-membina-diri', [
+        "*Kaya bermula dari diri* 🌱",
+        "",
+        "Kita selalu tanya orang kaya: kerja apa? bisnes apa?",
+        "",
+        "Soalan yang lebih penting: *macam mana* dia berusaha? Disiplin, sikap dan ilmu yang dia bina bertahun-tahun.",
+        "",
+        "Bina diri dulu. Harta mengikut."])
+    ],
+    warga: [
+      z('ZE01', 'kehidupan', 'Kawan lama minta tolong?', '2025/12/gara-gara-kesian-saya-hampir-kena-scam-rm42k-awasi-redflag-ini', [
+        '*Kawan lama tiba-tiba minta tolong?* 📞', '',
+        'Gambar profil sama, tapi suara lain sikit... minta pindah duit "sementara".', '',
+        'Berhenti dulu. *Telefon semula* nombor lama yang kita kenal, atau tanya ahli keluarga.', '',
+        'Penipu guna rasa kesian kita.']),
+      z('ZE02', 'emas', 'Emas murah dari individu?', '2025/11/emas-pre-loved-murah-tapi-berisiko-untung-kecil-ruginya-besar', [
+        '*Ada orang tawar emas murah?* 🚫', '',
+        'Emas pre-loved atau "harga kawan" boleh jadi emas curi, atau tak tulen.', '',
+        'Jual beli emas di *syarikat rasmi*, yang ada resit dan rekod.', '',
+        'Untung sikit, risiko besar. Tak berbaloi.']),
+      z('ZE03', 'emas', 'Simpan emas di rumah', '2023/09/tip-simpan-emas-di-rumah-dengan-selamat', [
+        '*Simpan emas di rumah?* 🔐', '',
+        'Ramai sangka risiko terbesar ialah kena curi. Tapi selalunya emas "hilang" sebab... *lupa simpan di mana*.', '',
+        'Catat tempat simpanan, dan beritahu orang yang dipercayai, contohnya pasangan atau waris.']),
+      z('ZE04', 'kehidupan', 'Lepas pencen nak buat apa?', '2025/06/lepas-pencen-nak-buat-apa-kerja-kerana-minat-bukan-sebab-terpaksa', [
+        '*Lepas pencen nak buat apa?* 🌿', '',
+        'Pencen bukan untuk duduk diam...', '',
+        'Buat apa yang kita suka: kongsi ilmu, bantu keluarga, beribadah, berjalan.', '',
+        'Bila kewangan tenang, kita *bekerja kerana minat*, bukan kerana terpaksa.']),
+      z('ZE05', 'emas', 'Wang kertas boleh "luput"', '2024/11/wang-kertas-ada-tarikh-luput-tapi-emas-kekal-selamanya-kisah-duit-rupee-india', [
+        '*Wang kertas boleh "luput"* 💵', '',
+        'Tahun 2016, India batalkan duit kertas 500 dan 1,000 rupee. Dalam sekelip mata, ramai panik.', '',
+        'Emas pula dihargai sejak ribuan tahun.', '',
+        'Sebab tu, eloklah sebahagian simpanan kita dalam *emas fizikal*.']),
+      z('ZE06', 'kehidupan', 'Doa ibu bapa', '2026/01/kejayaan-yang-berkat-bermula-dengan-doa-ibu-bapa', [
+        '*Doa yang paling mustajab* 🤲', '',
+        'Kejayaan anak-anak banyak bermula dengan doa ibu bapa.', '',
+        'Teruskan doakan mereka setiap hari... dan ajar mereka menyimpan, supaya rezeki yang Allah beri terjaga untuk generasi seterusnya.'], true),
+      z('ZE07', 'kewangan', 'Simpanan besar, jangan mudah dipindah', '2025/12/gara-gara-kesian-saya-hampir-kena-scam-rm42k-awasi-redflag-ini', [
+        '*Satu cara elak ditipu* 🛡️', '',
+        'Akaun harian: cukup untuk belanja biasa sahaja.', '',
+        'Simpanan besar letak di tempat yang *tak boleh dipindah dengan sekali klik*... contohnya emas fizikal.', '',
+        'Lambat sikit nak guna, tapi jauh lebih selamat.']),
+      z('ZE08', 'kehidupan', 'Pesan orang tua-tua', '2025/12/nak-senang-di-dunia-kena-banyak-duit-akhirat-kena-banyak-pahala', [
+        '*Pesan orang tua-tua* 🕊️', '',
+        '"Nak senang di dunia, kena banyak duit. Nak senang di akhirat, kena banyak pahala."', '',
+        'Dua-dua kita usahakan.', '',
+        'Simpanan menjaga keluarga di dunia... yang kita sedekahkan, *kekal sebagai bekal*.'], true),
+      // --- Set 2: dihantar selepas Set 1 habis ---
+      z('ZE09', 'emas', "Cop 916, betul ke 916?", '2026/01/tipu-ketulenan-sila-hati-hati-bila-beli-barang-kemas', [
+        "*Cop 916, tapi betul ke 916?* 🔍",
+        "",
+        "Ada barang kemas bercop 916, bila diuji rupanya kadar emasnya lebih rendah.",
+        "",
+        "Beli dari kedai yang dipercayai, simpan resit, dan bila ragu, *buat ujian ketulenan* sebelum jual atau tukar."]),
+      z('ZE10', 'kehidupan', "Baik saja tak cukup", '2025/08/kenapa-orang-baik-mudah-diperdaya-kalau-tak-bijak-kita-dipijak', [
+        "*Baik saja tak cukup* 🧭",
+        "",
+        "Orang baik selalu jadi sasaran penipu... sebab mudah percaya, mudah kesian.",
+        "",
+        "Jadi baik, dan *bijak*: semak dulu, tanya anak atau keluarga, jangan tandatangan apa-apa dalam keadaan tergesa-gesa."]),
+      z('ZE11', 'kehidupan', "\"Pakar\" kaya cepat?", '2024/12/elak-kena-scam-selidik-perkara-ini-sebelum-pilih-seorang-mentor', [
+        "*Ada \"pakar\" tawar ilmu kaya cepat?* 🎓",
+        "",
+        "Selidik dulu: hidup dia sendiri macam mana? Ada bukti anak murid yang berjaya?",
+        "",
+        "Kalau janji pulangan tinggi dan segera... *berhati-hati*. Ilmu yang baik mengajar sabar, bukan tergesa-gesa."]),
+      z('ZE12', 'kehidupan', "Belanja pun boleh jadi pahala", '2025/10/cape-town-duit-yang-kita-belanjakan-pun-boleh-dapat-pahala', [
+        "*Belanja pun boleh jadi pahala* 🛍️",
+        "",
+        "Beli dari peniaga kecil, guna khidmat orang tempatan... duit kita jadi *rezeki* buat mereka.",
+        "",
+        "Niatkan untuk membantu. Setiap ringgit yang dibelanja dengan niat baik, InsyaAllah tak sia-sia."], true),
+      z('ZE13', 'kehidupan', "Pelukan untuk anak cucu", '2025/06/peluklah-anak-anak-itu-bahasa-cinta-tanpa-perlu-berkata-kata', [
+        "*Pelukan, bahasa cinta tanpa kata* 🤗",
+        "",
+        "Anak dan cucu mungkin dah besar... tapi pelukan tetap bermakna.",
+        "",
+        "Hari ni, peluk mereka, tanya khabar, dengar cerita mereka.",
+        "",
+        "Harta boleh diwariskan. *Kasih sayang* pun perlu diwariskan."]),
+      z('ZE14', 'kehidupan', "Kaya itu salah?", '2025/09/kaya-bukan-dosa-tapi-peluang-untuk-masuk-syurga', [
+        "*Kaya itu salah?* 🕌",
+        "",
+        "Al-Quran ceritakan Qarun yang sombong... tapi juga Nabi Daud a.s. dan Nabi Sulaiman a.s. yang kaya dan bersyukur.",
+        "",
+        "Harta bukan dosa. Yang penting, harta itu *membawa kita lebih dekat* kepada Allah."], true),
+      z('ZE15', 'emas', "Jual beli emas patuh syariah", '2025/06/adakah-benar-jual-beli-emas-public-gold-patuh-syariah-2025', [
+        "*Jual beli emas patuh syariah?* ✅",
+        "",
+        "Jual beli emas ada syarat khusus dalam Islam: serah terima segera, harga jelas, bukan secara hutang.",
+        "",
+        "Pilih syarikat yang mendapat *pengesahan patuh syariah*, dan bertanya bila ragu."], true),
+      z('ZE16', 'kehidupan', "Sedekah kepada yang berusaha", '2026/01/utamakan-sedekah-kepada-mereka-yang-berusaha-kisah-salesman-kereta', [
+        "*Sedekah kepada siapa dulu?* 🤝",
+        "",
+        "Ada orang yang jujur berusaha... walaupun hidup sempit, dia tak meminta-minta.",
+        "",
+        "Bila nak membantu, *utamakan* mereka yang berusaha. Bantuan kita jadi semangat untuk mereka terus maju."], true)
+    ]
+  };
+
+
+  /* ============ SKRIP BAKAL PELANGGAN (tiada PG Code), versi 5 ============
+   * aud: 'prospek' — hanya untuk penyimpan yang belum buat belian (lajur PG CODE kosong). Keep in touch, tanpa paksaan.
+   * Ilham daripada artikel Tn Mohd Zulkifli Shafie (www.mohdzulkifli.com). */
+  function p(id, cat, title, src, lines, islamic) {
+    var m = x(id, cat, title, lines, islamic); m.aud = 'prospek'; if (src) m.src = 'https://www.mohdzulkifli.com/' + src + '.html'; return m;
+  }
+  var PROSPEK = [
+    p('ZP01', 'pengumuman', "Salam kenal (bakal pelanggan)", '', [
+      "*Salam kenal* 🤝",
+      "",
+      "Saya {nama_saya}, dealer emas Public Gold.",
+      "",
+      "Sekali-sekala saya kongsi *tips ringkas* tentang emas & kewangan. Pendek je, 1 minit baca.",
+      "",
+      "Ada soalan pasal simpan emas? Balas je terus, tak ada paksaan 😊"]),
+    p('ZP02', 'emas', "Kenapa ramai simpan emas?", '2023/08/inilah-sebab-utama-kenapa-saya-simpan-emas', [
+      "*Kenapa ramai pilih simpan emas?* 🪙",
+      "",
+      "Tiga sebab yang selalu disebut:",
+      "1. Duit simpanan *tak mudah bocor*.",
+      "2. Nilainya terjaga untuk jangka panjang.",
+      "3. Harta di bawah kawalan kita sendiri.",
+      "",
+      "Nak tahu cara mula? Balas je mesej ni."]),
+    p('ZP03', 'emas', "Modal kecil boleh simpan emas?", '2014/09/mudahnya-simpan-emas-dengan-gap-public-gold', [
+      "*Modal kecil boleh simpan emas?* 💳",
+      "",
+      "Boleh. Melalui *Akaun Emas GAP*, kita beli emas ikut kemampuan, sikit-sikit, bila-bila masa.",
+      "",
+      "Bila baki dah cukup, boleh tukar kepada emas fizikal.",
+      "",
+      "Nak saya tunjuk cara buka akaun? Balas \"NAK\"."]),
+    p('ZP04', 'kewangan', "Dana kecemasan dulu", '2016/06/emas-sebagai-simpanan-kecemasan', [
+      "*Sebelum simpan apa-apa* 🛟",
+      "",
+      "Pastikan ada *dana kecemasan* dulu, sekurang-kurangnya 3 bulan pendapatan.",
+      "",
+      "Lepas tu barulah fikir simpanan jangka panjang seperti emas.",
+      "",
+      "Susun ikut turutan, barulah tenang."]),
+    p('ZP05', 'emas', "\"Harga emas dah mahal...\"", '2025/12/harga-emas-dah-mahal-sesuai-lagi-ke-beli-emas-sekarang', [
+      "*\"Harga emas dah mahal...\"* 🤔",
+      "",
+      "Ramai yang tunggu harga turun... bertahun-tahun, akhirnya tak mula langsung.",
+      "",
+      "Cara lebih tenang: mula dengan *jumlah kecil yang tetap* setiap bulan. Harga tinggi dapat sikit, harga rendah dapat lebih."]),
+    p('ZP06', 'emas', "Faham asas sebelum mula", '2024/11/fahami-7-perkara-asas-ini-sebelum-memulakan-tabungan-emas', [
+      "*Sebelum mula, faham asas ni* 📚",
+      "",
+      "Emas *tak bayar dividen* bulanan.",
+      "",
+      "Kalau ada sesiapa janji \"simpan emas dapat income bulan-bulan\"... itu tanda bahaya.",
+      "",
+      "Simpan emas untuk menjaga nilai, jangka panjang."]),
+    p('ZP07', 'emas', "Kalau syarikat emas tutup?", '2026/09/kalau-public-gold-tutup-macam-mana-itu-soalan-15-tahun-lalu-tapi-sekarang', [
+      "*\"Kalau syarikat emas tutup macam mana?\"* 🏦",
+      "",
+      "Soalan yang bagus.",
+      "",
+      "Bila emas *fizikal* dah di tangan kita, nilainya pada berat dan ketulenan. Emas laku di mana-mana, bila-bila masa.",
+      "",
+      "Sebab tu matlamat kita: emas di tangan sendiri."]),
+    p('ZP08', 'emas', "Kenapa melalui dealer?", '2025/01/kerugian-daftar-public-gold-tanpa-introducer-dealer-terlatih', [
+      "*Kenapa buka akaun melalui dealer?* 🙋",
+      "",
+      "Bila ada masalah transaksi atau keliru, ada orang yang boleh dihubungi terus.",
+      "",
+      "Dealer yang baik bukan sekadar jual... tapi *bimbing* cara simpan yang betul.",
+      "",
+      "Saya sedia bantu bila-bila masa."]),
+    p('ZP09', 'emas', "\"Emas bank lebih murah?\"", '2025/10/kenapa-ramai-pilih-public-gold-walaupun-emas-bank-lebih-murah', [
+      "*\"Emas bank lebih murah, kan?\"* 🔍",
+      "",
+      "Kadang-kadang nampak macam tu.",
+      "",
+      "Tapi banding juga perkara lain: dapat *emas fizikal* atau sekadar nombor dalam akaun? Mudah jual balik? Patuh syariah?",
+      "",
+      "Banding semua, baru buat keputusan."]),
+    p('ZP10', 'emas', "Alang-alang simpan, biar ada target", '2025/11/teknik-kuno-alang-alang-simpan-emas-biarlah-sampai-kaya', [
+      "*Alang-alang simpan emas...* 🎯",
+      "",
+      "...biarlah ada *target*: dana kecemasan, tutup hutang, dana haji, sampai 1 kilogram untuk keluarga.",
+      "",
+      "Target yang jelas buat kita konsisten.",
+      "",
+      "Bila nak mula, saya ada untuk bantu 😊"])
+  ];
+
   var GROUPS = ['muda', 'dewasa', 'pertengahan', 'matang', 'warga'];
 
   function finish(m, ages) {
@@ -946,7 +1540,9 @@
       islamic: !!m.islamic,
       opener: m.opener !== false,
       on: true,
-      builtin: true
+      builtin: true,
+      src: m.src || '',
+      aud: m.aud || ''
     };
   }
 
@@ -968,7 +1564,10 @@
       byAge[g] = weave([AGE[g].emas, AGE[g].kehidupan, AGE[g].kewangan]).map(function (m) { return finish(m, [g]); });
     });
     var nAge = Math.max.apply(null, GROUPS.map(function (g) { return byAge[g].length; }));
-    var out = [finish(WELCOME)];
+    var out = [finish(WELCOME)].concat(PROSPEK.map(function (m) { return finish(m); }));
+    // Skrip ikut kategori Excel dihantar dahulu, sebelum pustaka asal
+    var nS = Math.max.apply(null, GROUPS.map(function (g) { return SKRIP[g].length; }));
+    for (var si = 0; si < nS; si++) GROUPS.forEach(function (g) { if (SKRIP[g][si]) out.push(finish(SKRIP[g][si], [g])); });
     var gi = 0, ai = 0;
     for (var k = 0; gi < general.length || ai < nAge; k++) {
       if ((k % 3 === 2 || gi >= general.length) && ai < nAge) {
@@ -1080,7 +1679,7 @@
   var V1 = {"m":{"S00":3247842959,"E01":1125120570,"K01":2003055928,"M01":3943291689,"D01":3359548571,"P01":152495305,"B01":2722417947,"W01":854201218,"H03":1608761186,"E04":2307102540,"M02":3879950022,"D02":394975810,"P02":4030402612,"B02":2738656753,"W02":3922615109,"K02":1100056704,"H01":572028354,"M03":3327484756,"D03":1294345359,"P03":108871219,"B03":1414094393,"W03":869934768,"E02":903744753,"K09":965511780,"M04":4034100926,"D04":993813223,"P04":1123031181,"B04":1847590004,"W04":3136829219,"H02":1174694985,"E08":3531709224,"M05":3335732621,"D05":2784754474,"P05":1039558734,"B05":4133758178,"W05":371419563,"E05":1311230658,"K03":709131413,"M06":2447067775,"D06":1508335969,"P06":2216081143,"B06":4256926510,"W06":3759594249,"H04":345249222,"E11":1867311809,"M07":4291023923,"D07":445433768,"P07":1402911199,"B07":1400122702,"W07":3213556586,"K04":1328389693,"H05":606073723,"M08":1144008438,"D08":1922245538,"P08":3646137365,"B08":1337406333,"W08":2328458664,"E03":1734981314,"K06":267071540,"M09":4112431353,"D09":1645678976,"P09":711532189,"B09":3608978326,"W09":271789162,"H08":1136976769,"E06":4144733412,"M10":1133184935,"D10":700300598,"P10":2179801959,"B10":2642243513,"W10":3307850237,"E12":1373421733,"K05":3734797076,"H06":2548370514,"E07":4062455504,"K07":913765450,"H07":4042986908,"E09":2419431619,"K08":3733668929,"H09":2095137235,"E10":878364878},"b":{"BD1":3826179875,"BD2":2328815684,"BD3":975176027,"BD4":13365720,"BD5":3894644599,"BD6":1424963857,"BD7":3877202448,"BD8":1987142361},"openers":["{salam} {panggilan} 😊","{salam} {panggilan}, selamat {waktu}!","{salam} {panggilan}, apa khabar? Semoga sihat selalu 🌿","{salam} {panggilan} 👋","{salam} {panggilan}. Tips ringkas hari {hari} ni 👇"]};
 
   root.SE_CONTENT = {
-    version: 2,
+    version: 5,
     messages: buildOrder(),
     birthdays: BIRTHDAYS,
     openers: OPENERS,
